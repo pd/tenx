@@ -9,11 +9,11 @@ pub enum Line {
     Row(usize),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Piece {
     pub name: &'static str,
-    pub size: [usize; 2],
-    pub squares: Vec<Vec<bool>>,
+    pub value: Points,
+    pub occ: u32,
 }
 
 impl fmt::Debug for Piece {
@@ -25,29 +25,17 @@ impl fmt::Debug for Piece {
 impl Piece {
     pub fn random() -> Piece {
         let n = thread_rng().gen_range(0, PIECES.len());
-        PIECES[n].clone()
-    }
-
-    pub fn value(&self) -> Points {
-        self.squares
-            .iter()
-            .flat_map(|row| row.iter().filter(|&&sq| sq))
-            .count() as Points
+        PIECES[n]
     }
 
     pub fn offsets(&self) -> Vec<(isize, isize)> {
-        let x1 = self.squares[0]
-            .iter()
-            .enumerate()
-            .find(|&(_, &v)| v)
-            .expect("No occupied square on top row?")
-            .0 as isize;
+        let bits = self.occ;
+        let x1 = bits.trailing_zeros() as isize;
 
         let mut offsets = vec![];
-
-        for (y, ref row) in self.squares.iter().enumerate() {
-            for (x, &sq) in row.iter().enumerate() {
-                if sq {
+        for y in 0..5 {
+            for x in 0..5 {
+                if bits & (1 << (y * 5 + x)) != 0 {
                     offsets.push((x as isize - x1, y as isize));
                 }
             }
@@ -57,175 +45,38 @@ impl Piece {
     }
 }
 
+macro_rules! define_piece {
+    ($name:expr, $bits:expr) => {
+        Piece {
+            name:  $name,
+            occ:   $bits,
+            value: ($bits as u32).count_ones() as u64,
+        }
+    }
+}
+
 lazy_static! {
     #[cfg_attr(rustfmt, rustfmt_skip)]
     pub static ref PIECES: [Piece; 19] = [
-        Piece {
-            name: "Uni",
-            size: [1, 1],
-            squares: vec![vec![true]]
-        },
-
-        Piece {
-            name: "DuoUD",
-            size: [1, 2],
-            squares: vec![
-                vec![true],
-                vec![true]
-            ],
-        },
-
-        Piece {
-            name: "DuoLR",
-            size: [2, 1],
-            squares: vec![vec![true, true]],
-        },
-
-        Piece {
-            name: "TriUD",
-            size: [1, 3],
-            squares: vec![
-                vec![true],
-                vec![true],
-                vec![true]
-            ],
-        },
-
-        Piece {
-            name: "TriLR",
-            size: [3, 1],
-            squares: vec![vec![true, true, true]],
-        },
-
-        Piece {
-            name: "TriNW",
-            size: [2, 2],
-            squares: vec![
-                vec![true,  true],
-                vec![false, true],
-            ],
-        },
-
-        Piece {
-            name: "TriNE",
-            size: [2, 2],
-            squares: vec![
-                vec![true, true],
-                vec![true, false],
-            ],
-        },
-
-        Piece {
-            name: "TriSW",
-            size: [2, 2],
-            squares: vec![
-                vec![false, true],
-                vec![true,  true],
-            ],
-        },
-
-        Piece {
-            name: "TriSE",
-            size: [2, 2],
-            squares: vec![
-                vec![true, false],
-                vec![true, true],
-            ],
-        },
-
-        Piece {
-            name: "QuadUD",
-            size: [1, 4],
-            squares: vec![
-                vec![true],
-                vec![true],
-                vec![true],
-                vec![true],
-            ],
-        },
-
-        Piece {
-            name: "QuadLR",
-            size: [4, 1],
-            squares: vec![vec![true, true, true, true]]
-        },
-
-        Piece {
-            name: "Square2",
-            size: [2, 2],
-            squares: vec![
-                vec![true, true],
-                vec![true, true],
-            ],
-        },
-
-        Piece {
-            name: "Square3",
-            size: [3, 3],
-            squares: vec![
-                vec![true, true, true],
-                vec![true, true, true],
-                vec![true, true, true],
-            ],
-        },
-
-        Piece {
-            name: "EllNW",
-            size: [3, 3],
-            squares: vec![
-                vec![true,  true,  true],
-                vec![false, false, true],
-                vec![false, false, true],
-            ],
-        },
-
-        Piece {
-            name: "EllNE",
-            size: [3, 3],
-            squares: vec![
-                vec![true, true,  true],
-                vec![true, false, false],
-                vec![true, false, false],
-            ],
-        },
-
-        Piece {
-            name: "EllSW",
-            size: [3, 3],
-            squares: vec![
-                vec![false, false, true],
-                vec![false, false, true],
-                vec![true,  true,  true],
-            ],
-        },
-
-        Piece {
-            name: "EllSE",
-            size: [3, 3],
-            squares: vec![
-                vec![true, false, false],
-                vec![true, false, false],
-                vec![true, true,  true],
-            ],
-        },
-
-        Piece {
-            name: "PentUD",
-            size: [1, 5],
-            squares: vec![
-                vec![true],
-                vec![true],
-                vec![true],
-                vec![true],
-                vec![true],
-            ],
-        },
-
-        Piece {
-            name: "PentLR",
-            size: [5, 1],
-            squares: vec![vec![true, true, true, true, true]]
-        },
+        define_piece!("Uni",     0b1),
+        define_piece!("DuoUD",   0b100001),
+        define_piece!("DuoLR",   0b11),
+        define_piece!("TriUD",   0b10000100001),
+        define_piece!("TriLR",   0b111),
+        define_piece!("TriNW",   0b1000011),
+        define_piece!("TriNE",   0b100011),
+        define_piece!("TriSW",   0b1100010),
+        define_piece!("TriSE",   0b1100001),
+        define_piece!("QuadUD",  0b1000010000100001),
+        define_piece!("QuadLR",  0b1111),
+        define_piece!("Square2", 0b1100011),
+        define_piece!("Square3", 0b1110011100111),
+        define_piece!("EllNW",   0b001000010000111),
+        define_piece!("EllNE",   0b000010000100111),
+        define_piece!("EllSE",   0b1110000100001),
+        define_piece!("EllSW",   0b1110010000100),
+        define_piece!("PentUD",  0b100001000010000100001),
+        define_piece!("PentLR",  0b11111),
     ];
 }
 
@@ -321,15 +172,13 @@ impl Board {
         }
 
         if !self.can_fit(pc, x, y) {
-            return Err(PlacementError::Occupied(pc.clone(), x, y));
+            return Err(PlacementError::Occupied(*pc, x, y));
         }
 
-        // TODO: I don't _really_ grok why I have to explicitly re-construct the board
-        // here. So many `clone()`s.
         let base = Board { squares: self.squares.clone() };
         let board: Board = pc.offsets().iter().fold(base, |b, &(dx, dy)| {
             let (nx, ny) = dxy(x, dx, y, dy);
-            b.put_square(pc.clone(), nx as usize, ny as usize)
+            b.put_square(*pc, nx as usize, ny as usize)
         });
 
         Ok(board)
@@ -371,44 +220,16 @@ impl Board {
 #[cfg(test)]
 mod tests {
     use super::{PIECES, Piece, Board, Line};
+    use itertools::Itertools;
 
     fn piece_by_name(name: &str) -> Piece {
-        let pc = PIECES.iter().find(|pc| pc.name == name).expect("no such piece");
-        pc.clone()
+        *PIECES.iter().find(|pc| pc.name == name).expect("no such piece")
     }
 
     fn filled_board() -> Board {
-        use itertools::Itertools;
-
         let uni = piece_by_name("Uni");
         let all_squares = (0..10).cartesian_product(0..10);
-        all_squares.fold(Board::new(),
-                         |board, (x, y)| board.put_square(uni.clone(), x, y))
-    }
-
-    #[test]
-    fn test_piece() {
-        for pc in PIECES.iter() {
-            let (w, h) = (pc.size[0], pc.size[1]);
-            assert_eq!(pc.squares.len(), h, "height mismatch: {}", pc.name);
-            for row in pc.squares.iter() {
-                assert_eq!(row.len(), w, "width mismatch: {}", pc.name);
-            }
-
-            let expected_value = match pc.name {
-                "Uni" => 1,
-                "DuoUD" | "DuoLR" => 2,
-                "TriUD" | "TriLR" | "TriNW" | "TriNE" | "TriSW" | "TriSE" => 3,
-                "QuadUD" | "QuadLR" => 4,
-                "PentUD" | "PentLR" => 5,
-                "EllNW" | "EllNE" | "EllSW" | "EllSE" => 5,
-                "Square2" => 4,
-                "Square3" => 9,
-                _ => unreachable!(),
-            };
-
-            assert_eq!(pc.value(), expected_value);
-        }
+        all_squares.fold(Board::new(), |b, (x, y)| b.put_square(uni, x, y))
     }
 
     #[test]
@@ -428,8 +249,6 @@ mod tests {
 
     #[test]
     fn test_fit_obvious() {
-        use itertools::Itertools;
-
         let empty_board = Board::new();
         assert_eq!(empty_board.occupancy(), 0);
 
@@ -443,7 +262,7 @@ mod tests {
 
         // but only pieces filled at (0, 0) can fit at the board's (0, 0)
         for pc in PIECES.iter() {
-            if pc.squares[0][0] {
+            if pc.occ.trailing_zeros() == 0 {
                 assert!(empty_board.can_fit(pc, 0, 0),
                         "Piece {} should fit at (0, 0)",
                         pc.name);

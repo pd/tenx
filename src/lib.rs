@@ -55,16 +55,14 @@ pub struct GameState {
 
 fn generate_pieces() -> ([Option<Piece>; 3], GameStateChange) {
     let pieces = [Piece::random(), Piece::random(), Piece::random()];
-    let change =
-        GameStateChange::Gen { pieces: [pieces[0].clone(), pieces[1].clone(), pieces[2].clone()] };
-
-    ([Some(pieces[0].clone()), Some(pieces[1].clone()), Some(pieces[2].clone())], change)
+    let change = GameStateChange::Gen { pieces: pieces };
+    ([Some(pieces[0]), Some(pieces[1]), Some(pieces[2])], change)
 }
 
 fn played_piece(to_play: &[Option<Piece>; 3], index: usize) -> [Option<Piece>; 3] {
-    [if index == 0 { None } else { to_play[0].clone() },
-     if index == 1 { None } else { to_play[1].clone() },
-     if index == 2 { None } else { to_play[2].clone() }]
+    [if index == 0 { None } else { to_play[0] },
+     if index == 1 { None } else { to_play[1] },
+     if index == 2 { None } else { to_play[2] }]
 }
 
 fn clear_filled(board: Board) -> (Board, History) {
@@ -109,8 +107,8 @@ impl GameState {
                 let board = try!(self.board.place(pc, x, y));
 
                 let mut history: History = vec![GameStateChange::Play {
-                                                    piece: pc.clone(),
-                                                    points: pc.value(),
+                                                    piece: *pc,
+                                                    points: pc.value,
                                                 }];
 
                 let to_play = {
@@ -168,11 +166,11 @@ mod tests {
     fn test_clear_two_lines() {
         let board = {
             let mut b = Board::new();
-            let uni = PIECES[0].clone();
+            let uni = PIECES[0];
 
             for y in 0..2 {
                 for x in 0..9 {
-                    b = b.put_square(uni.clone(), x, y);
+                    b = b.put_square(uni, x, y);
                 }
             }
 
@@ -182,7 +180,7 @@ mod tests {
         let state = GameState {
             board: board,
             score: 0,
-            to_play: [Some(PIECES[3].clone()), Some(PIECES[0].clone()), Some(PIECES[0].clone())],
+            to_play: [Some(PIECES[3]), Some(PIECES[0]), Some(PIECES[0])],
         };
 
         // play TriUD at the NE edge
