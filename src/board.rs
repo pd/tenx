@@ -28,20 +28,23 @@ impl Piece {
         PIECES[n]
     }
 
+    #[inline]
+    pub fn is_bit_set(&self, x: usize, y: usize) -> bool {
+        self.occ & (1 << (y * 5 + x)) != 0
+    }
+
     pub fn offsets(&self) -> Vec<(isize, isize)> {
+        use itertools::Itertools;
+
         let bits = self.occ;
         let x1 = bits.trailing_zeros() as isize;
 
-        let mut offsets = vec![];
-        for y in 0..5 {
-            for x in 0..5 {
-                if bits & (1 << (y * 5 + x)) != 0 {
-                    offsets.push((x as isize - x1, y as isize));
-                }
+        (0..5).cartesian_product(0..5).fold(vec![], |mut offsets, (x, y)| {
+            if self.is_bit_set(x, y) {
+                offsets.push((x as isize - x1, y as isize));
             }
-        }
-
-        offsets
+            offsets
+        })
     }
 }
 
