@@ -61,25 +61,25 @@ macro_rules! define_piece {
 lazy_static! {
     #[cfg_attr(rustfmt, rustfmt_skip)]
     pub static ref PIECES: [Piece; 19] = [
-        define_piece!("Uni",     0b1),
-        define_piece!("DuoUD",   0b100001),
-        define_piece!("DuoLR",   0b11),
-        define_piece!("TriUD",   0b10000100001),
-        define_piece!("TriLR",   0b111),
-        define_piece!("TriNW",   0b1000011),
-        define_piece!("TriNE",   0b100011),
-        define_piece!("TriSW",   0b1100010),
-        define_piece!("TriSE",   0b1100001),
-        define_piece!("QuadUD",  0b1000010000100001),
-        define_piece!("QuadLR",  0b1111),
-        define_piece!("Square2", 0b1100011),
-        define_piece!("Square3", 0b1110011100111),
-        define_piece!("EllNW",   0b001000010000111),
-        define_piece!("EllNE",   0b000010000100111),
-        define_piece!("EllSE",   0b1110000100001),
-        define_piece!("EllSW",   0b1110010000100),
-        define_piece!("PentUD",  0b100001000010000100001),
-        define_piece!("PentLR",  0b11111),
+        define_piece!(/* 00 */ "Uni",     0b1),
+        define_piece!(/* 01 */ "DuoUD",   0b100001),
+        define_piece!(/* 02 */ "DuoLR",   0b11),
+        define_piece!(/* 03 */ "TriUD",   0b10000100001),
+        define_piece!(/* 04 */ "TriLR",   0b111),
+        define_piece!(/* 05 */ "TriNW",   0b1000011),
+        define_piece!(/* 06 */ "TriNE",   0b100011),
+        define_piece!(/* 07 */ "TriSW",   0b1100010),
+        define_piece!(/* 08 */ "TriSE",   0b1100001),
+        define_piece!(/* 09 */ "QuadUD",  0b1000010000100001),
+        define_piece!(/* 10 */ "QuadLR",  0b1111),
+        define_piece!(/* 11 */ "Square2", 0b1100011),
+        define_piece!(/* 12 */ "Square3", 0b1110011100111),
+        define_piece!(/* 13 */ "EllNW",   0b001000010000111),
+        define_piece!(/* 14 */ "EllNE",   0b000010000100111),
+        define_piece!(/* 15 */ "EllSE",   0b1110000100001),
+        define_piece!(/* 16 */ "EllSW",   0b1110010000100),
+        define_piece!(/* 17 */ "PentUD",  0b100001000010000100001),
+        define_piece!(/* 18 */ "PentLR",  0b11111),
     ];
 }
 
@@ -108,7 +108,7 @@ pub enum PlacementError {
     Occupied(Piece, usize, usize),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Board {
     squares: Vec<Option<Piece>>,
 }
@@ -220,6 +220,19 @@ impl Board {
     }
 }
 
+impl fmt::Display for Board {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut s = String::new();
+        for y in 0..10 {
+            for x in 0..10 {
+                s.push(if self.is_occupied(x, y) { 'X' } else { ' ' });
+            }
+            s.push('\n');
+        }
+        write!(f, "{}", s)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{PIECES, Piece, Board, Line};
@@ -233,6 +246,22 @@ mod tests {
         let uni = piece_by_name("Uni");
         let all_squares = (0..10).cartesian_product(0..10);
         all_squares.fold(Board::new(), |b, (x, y)| b.put_square(uni, x, y))
+    }
+
+    fn random_board(n: u32) -> Board {
+        use rand::{thread_rng, Rng};
+
+        let mut rng = thread_rng();
+        let uni = piece_by_name("Uni");
+        let all_squares = (0..10).cartesian_product(0..10);
+
+        all_squares.fold(Board::new(), |b, (x, y)| {
+            if rng.gen_weighted_bool(n) {
+                b.put_square(uni, x, y)
+            } else {
+                b
+            }
+        })
     }
 
     #[test]

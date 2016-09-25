@@ -26,10 +26,15 @@ impl From<PlacementError> for PlayError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum GameStateChange {
     Gen { pieces: [Piece; 3] },
-    Play { piece: Piece, points: Points },
+    Play {
+        piece: Piece,
+        x: usize,
+        y: usize,
+        points: Points,
+    },
     Clear { line: Line, points: Points },
     GameOver,
 }
@@ -37,8 +42,8 @@ pub enum GameStateChange {
 impl GameStateChange {
     pub fn score(&self) -> Points {
         match self {
-            &GameStateChange::Play { piece: _, points } |
-            &GameStateChange::Clear { line: _, points } => points,
+            &GameStateChange::Play { points, .. } |
+            &GameStateChange::Clear { points, .. } => points,
             _ => 0,
         }
     }
@@ -74,15 +79,46 @@ fn clear_filled(board: Board) -> (Board, History) {
 
     let filled = cleared.filled();
     for (i, &line) in filled.iter().enumerate() {
-        let points: Points = if i == 0 { 10 } else { 20 };
         cleared = cleared.clear(line);
         history.push(GameStateChange::Clear {
             line: line,
-            points: points,
+            points: 10 * (i as Points + 1),
         });
     }
 
     (cleared, history)
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Move {
+    pub piece_number: usize,
+    pub x: usize,
+    pub y: usize,
+}
+
+pub fn possible_moves(board: &Board, pieces: [Option<Piece>; 3]) -> Vec<Move> {
+    use itertools::Itertools;
+
+    let mut moves: Vec<Move> = vec![];
+
+    for (x, y) in (0..10).cartesian_product(0..10) {
+        for n in 0..3 {
+            let opt = pieces[n];
+            if opt.is_none() {
+                continue;
+            }
+
+            if board.can_fit(&opt.unwrap(), x, y) {
+                moves.push(Move {
+                    piece_number: n,
+                    x: x,
+                    y: y,
+                });
+            }
+        }
+    }
+
+    moves
 }
 
 impl GameState {
@@ -108,6 +144,8 @@ impl GameState {
 
                 let mut history: History = vec![GameStateChange::Play {
                                                     piece: *pc,
+                                                    x: x,
+                                                    y: y,
                                                     points: pc.value,
                                                 }];
 
@@ -133,16 +171,33 @@ impl GameState {
                     to_play: to_play,
                 };
 
+                if next_state.is_game_over() {
+                    history.push(GameStateChange::GameOver);
+                }
+
                 Ok((next_state, history))
             }
         }
+    }
+
+    pub fn is_game_over(&self) -> bool {
+        use itertools::Itertools;
+        use std::ops::Not;
+
+        let remaining: Vec<Piece> =
+            self.to_play.iter().filter(|x| x.is_some()).map(|x| x.unwrap()).collect();
+
+        (0..10)
+            .cartesian_product(0..10)
+            .any(|(x, y)| remaining.iter().any(|pc| self.board.can_fit(pc, x, y)))
+            .not()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::GameState;
-    use board::{Board, PIECES};
+    use super::{GameState, GameStateChange, History, Move, possible_moves};
+    use board::{Board, Piece, Points, PIECES};
 
     #[test]
     fn test_new_game() {
@@ -163,12 +218,12 @@ mod tests {
     }
 
     #[test]
-    fn test_clear_two_lines() {
+    fn test_clear_three_lines() {
         let board = {
             let mut b = Board::new();
             let uni = PIECES[0];
 
-            for y in 0..2 {
+            for y in 0..3 {
                 for x in 0..9 {
                     b = b.put_square(uni, x, y);
                 }
@@ -188,8 +243,124 @@ mod tests {
         assert!(result.is_ok());
 
         let (new_state, history) = result.unwrap();
-        assert_eq!(new_state.score, 33);
-        assert_eq!(history.len(), 3);
-        assert_eq!(new_state.board.occupancy(), 1);
+        assert_eq!(new_state.score, 63);
+        assert_eq!(history.len(), 4);
+    }
+
+    #[test]
+    fn test_losing() {
+        let board = {
+            let mut b = Board::new();
+            let uni = PIECES[0];
+
+            for y in 0..9 {
+                for x in 0..9 {
+                    b = b.put_square(uni, x, y);
+                }
+            }
+
+            b
+        };
+
+        assert_eq!(board.filled().len(), 0);
+
+        let state = GameState {
+            board: board,
+            score: 0,
+            to_play: [Some(PIECES[0]), Some(PIECES[12]), Some(PIECES[12])],
+        };
+
+        // Clear one line, but not enough to make space for the 3x3s. Game over.
+        let result = state.play(0, 9, 0);
+        assert!(result.is_ok());
+
+        let (new_state, history) = result.unwrap();
+        assert_eq!(new_state.score, 11);
+
+        if let Some(change) = history.last() {
+            match *change {
+                GameStateChange::GameOver => (),
+                _ => panic!("Should be game over, but isn't"),
+            }
+        }
+    }
+
+    fn play_random_game<F>(mut pick_move: F) -> (GameState, History)
+        where F: FnMut(&[Move], &Board, [Option<Piece>; 3]) -> Move
+    {
+        let mut state = GameState::new();
+        let mut history: History = vec![];
+
+        while !state.is_game_over() {
+            let moves = possible_moves(&state.board, state.to_play);
+            let mv = pick_move(&moves, &state.board, state.to_play);
+
+            match state.play(mv.piece_number, mv.x, mv.y) {
+                Ok((next_state, changes)) => {
+                    state = next_state;
+                    history.extend(changes);
+                }
+                Err(e) => panic!("Move {:?} failed: {:?}", mv, e),
+            }
+        }
+
+        (state, history)
+    }
+
+    fn play_many_games<F>(n: usize, mut pick_move: F) -> (Points, usize)
+        where F: FnMut(&[Move], &Board, [Option<Piece>; 3]) -> Move
+    {
+        let (state, history) = (0..n)
+            .map(|_| play_random_game(|moves, board, pieces| pick_move(moves, board, pieces)))
+            .max_by_key(|&(ref s, _)| s.score)
+            .unwrap();
+
+        let score = state.score;
+        let cleared = history.iter()
+            .filter(|c| {
+                match *c {
+                    &GameStateChange::Clear { .. } => true,
+                    _ => false,
+                }
+            })
+            .count();
+
+        (score, cleared)
+    }
+
+    #[test]
+    fn test_random_game() {
+        use rand::{thread_rng, Rng};
+        let mut rng = thread_rng();
+
+        let (score, cleared) = play_many_games(200, |moves, _, _| *rng.choose(&moves).unwrap());
+        println!("Best of 200, max score = {}", score);
+        println!("Cleared {} lines", cleared);
+    }
+
+    #[test]
+    fn test_slightly_less_stupid_game() {
+        let resulting_score = move |mv: &Move, board: &Board, pieces: [Option<Piece>; 3]| -> i64 {
+            let (state, _) = GameState {
+                    board: board.clone(),
+                    score: 0,
+                    to_play: pieces,
+                }
+                .play(mv.piece_number, mv.x, mv.y)
+                .unwrap();
+            if state.is_game_over() { -1000 } else { state.score as i64 }
+        };
+
+        let pick = |moves: &[Move], board: &Board, pieces: [Option<Piece>; 3]| -> Move {
+            let best_move = moves.iter()
+                .max_by_key(|mv| resulting_score(mv, board, pieces))
+                .unwrap();
+
+            *best_move
+        };
+
+        let (score, cleared) = play_many_games(200, pick);
+        println!("Best of 200, max score = {}", score);
+        println!("Cleared {} lines", cleared);
     }
 }
