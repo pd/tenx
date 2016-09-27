@@ -206,13 +206,13 @@ impl Board {
             return Err(PlacementError::Occupied(*pc, x, y));
         }
 
-        let base = Board { squares: self.squares.clone() };
-        let board: Board = OFFSETS[pc.id].iter().fold(base, |b, &(dx, dy)| {
+        let mut squares = self.squares.clone();
+        for &(dx, dy) in OFFSETS[pc.id].iter() {
             let (nx, ny) = dxy(x, dx, y, dy);
-            b.put_square(pc, nx as usize, ny as usize)
-        });
+            squares[index(nx as usize, ny as usize)] = Some(pc)
+        }
 
-        Ok(board)
+        Ok(Board { squares: squares })
     }
 
     pub fn clear(&self, line: Line) -> Board {
