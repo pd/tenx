@@ -5,7 +5,9 @@ authors = ["Kyle Hargraves <pd@krh.me>"]
 
 [dependencies]
 rand = "*"
-custom_derive = "*"
-enum_derive = "*"
 lazy_static = "0.1.*"
 itertools = "0.4.*"
+rayon = "0.4.*"
+
+[profile.release]
+debug = true

@@ -1,5 +1,6 @@
 use rand::{thread_rng, Rng};
 use std::fmt;
+use std::collections::HashMap;
 
 pub type Points = u64;
 
@@ -23,9 +24,9 @@ impl fmt::Debug for Piece {
 }
 
 impl Piece {
-    pub fn random() -> Piece {
+    pub fn random() -> &'static Piece {
         let n = thread_rng().gen_range(0, PIECES.len());
-        PIECES[n]
+        &PIECES[n]
     }
 
     #[inline]
@@ -81,6 +82,14 @@ lazy_static! {
         define_piece!(/* 17 */ "PentUD",  0b100001000010000100001),
         define_piece!(/* 18 */ "PentLR",  0b11111),
     ];
+
+    pub static ref OFFSETS: HashMap<&'static str, Vec<(isize, isize)>> = {
+        let mut map = HashMap::new();
+        for pc in PIECES.iter() {
+            map.insert(pc.name, pc.offsets());
+        }
+        map
+    };
 }
 
 #[inline]
@@ -110,7 +119,7 @@ pub enum PlacementError {
 
 #[derive(Debug, Clone)]
 pub struct Board {
-    squares: Vec<Option<Piece>>,
+    squares: Vec<Option<&'static Piece>>,
 }
 
 impl Board {
@@ -161,15 +170,15 @@ impl Board {
         cols.chain(rows).collect()
     }
 
-    pub fn can_fit(&self, pc: &Piece, x: usize, y: usize) -> bool {
-        pc.offsets().iter().all(|&(dx, dy)| {
+    pub fn can_fit(&self, pc: &'static Piece, x: usize, y: usize) -> bool {
+        OFFSETS.get(pc.name).unwrap().iter().all(|&(dx, dy)| {
             let (nx, ny) = dxy(x, dx, y, dy);
             in_bounds(nx, ny) && !self.is_occupied(nx as usize, ny as usize)
         })
     }
 
     // Place pc at (x, y).
-    pub fn place(&self, pc: &Piece, x: usize, y: usize) -> Result<Board, PlacementError> {
+    pub fn place(&self, pc: &'static Piece, x: usize, y: usize) -> Result<Board, PlacementError> {
         if !in_bounds(x as isize, y as isize) {
             return Err(PlacementError::OutOfBounds(x, y));
         }
@@ -179,9 +188,9 @@ impl Board {
         }
 
         let base = Board { squares: self.squares.clone() };
-        let board: Board = pc.offsets().iter().fold(base, |b, &(dx, dy)| {
+        let board: Board = OFFSETS.get(pc.name).unwrap().iter().fold(base, |b, &(dx, dy)| {
             let (nx, ny) = dxy(x, dx, y, dy);
-            b.put_square(*pc, nx as usize, ny as usize)
+            b.put_square(pc, nx as usize, ny as usize)
         });
 
         Ok(board)
@@ -207,7 +216,7 @@ impl Board {
     }
 
     // Unconditionally fill only (x, y) with pc.
-    pub fn put_square(&self, pc: Piece, x: usize, y: usize) -> Board {
+    pub fn put_square(&self, pc: &'static Piece, x: usize, y: usize) -> Board {
         let mut squares = self.squares.clone();
         squares[index(x, y)] = Some(pc);
         Board { squares: squares }
@@ -238,8 +247,8 @@ mod tests {
     use super::{PIECES, Piece, Board, Line};
     use itertools::Itertools;
 
-    fn piece_by_name(name: &str) -> Piece {
-        *PIECES.iter().find(|pc| pc.name == name).expect("no such piece")
+    fn piece_by_name(name: &str) -> &'static Piece {
+        PIECES.iter().find(|pc| pc.name == name).expect("no such piece")
     }
 
     fn filled_board() -> Board {
