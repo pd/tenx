@@ -171,13 +171,13 @@ impl Board {
 
     pub fn filled(&self) -> Vec<Line> {
         let cols = (0..10)
-            .filter_map(|x| match (0..10).into_iter().all(|y| self.is_occupied(x, y)) {
+            .filter_map(|x| match (0..10).all(|y| self.is_occupied(x, y)) {
                 true => Some(Line::Col(x)),
                 false => None,
             });
 
         let rows = (0..10)
-            .filter_map(|y| match (0..10).into_iter().all(|x| self.is_occupied(x, y)) {
+            .filter_map(|y| match (0..10).all(|x| self.is_occupied(x, y)) {
                 true => Some(Line::Row(y)),
                 false => None,
             });
