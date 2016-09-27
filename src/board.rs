@@ -160,12 +160,7 @@ impl Board {
         self.squares
             .iter()
             .enumerate()
-            .map(|(i, opt_pc)| {
-                let (x, y) = to_pos(i);
-                if opt_pc.is_none() { Some((x, y)) } else { None }
-            })
-            .filter(|x| x.is_some())
-            .map(|x| x.unwrap())
+            .filter_map(|(i, pc)| if pc.is_none() { Some(to_pos(i)) } else { None })
             .collect()
     }
 
