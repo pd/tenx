@@ -272,22 +272,6 @@ mod tests {
         all_squares.fold(Board::new(), |b, (x, y)| b.put_square(uni, x, y))
     }
 
-    fn random_board(n: u32) -> Board {
-        use rand::{thread_rng, Rng};
-
-        let mut rng = thread_rng();
-        let uni = piece_by_name("Uni");
-        let all_squares = (0..10).cartesian_product(0..10);
-
-        all_squares.fold(Board::new(), |b, (x, y)| {
-            if rng.gen_weighted_bool(n) {
-                b.put_square(uni, x, y)
-            } else {
-                b
-            }
-        })
-    }
-
     #[test]
     fn test_clear() {
         let mut board = filled_board().clear(Line::Col(0));

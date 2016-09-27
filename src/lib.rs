@@ -199,8 +199,8 @@ impl GameState {
 
 #[cfg(test)]
 mod tests {
-    use super::{GameState, GameStateChange, History, Move, possible_moves};
-    use board::{Board, Piece, Points, PIECES};
+    use super::{GameState, GameStateChange};
+    use board::{Board, PIECES};
 
     #[test]
     fn test_new_game() {
@@ -286,93 +286,5 @@ mod tests {
                 _ => panic!("Should be game over, but isn't"),
             }
         }
-    }
-
-    fn play_random_game<F: Sync>(pick_move: F) -> (GameState, History)
-        where F: Fn(&[Move], &Board, [Option<&'static Piece>; 3]) -> Move
-    {
-        let mut state = GameState::new();
-        let mut history: History = vec![];
-
-        while !state.is_game_over() {
-            let moves = possible_moves(&state.board, state.to_play);
-            let mv = pick_move(&moves, &state.board, state.to_play);
-
-            match state.play(mv.piece_number, mv.x, mv.y) {
-                Ok((next_state, changes)) => {
-                    state = next_state;
-                    history.extend(changes);
-                }
-                Err(e) => panic!("Move {:?} failed: {:?}", mv, e),
-            }
-        }
-
-        (state, history)
-    }
-
-    fn play_many_games<F: Sync>(n: usize, pick_move: F) -> (Points, usize)
-        where F: Fn(&[Move], &Board, [Option<&'static Piece>; 3]) -> Move
-    {
-        use rayon::prelude::*;
-
-        let mut results: Vec<(GameState, History)> = vec![];
-
-        (0..n)
-            .into_par_iter()
-            .map(|_| play_random_game(|moves, board, pieces| pick_move(moves, board, pieces)))
-            .collect_into(&mut results);
-
-        let (ref state, ref history) = *results.iter()
-            .max_by_key(|&&(ref s, _)| s.score)
-            .unwrap();
-
-        let score = state.score;
-        let cleared = history.iter()
-            .filter(|c| {
-                match *c {
-                    &GameStateChange::Clear { .. } => true,
-                    _ => false,
-                }
-            })
-            .count();
-
-        (score, cleared)
-    }
-
-    #[test]
-    fn test_random_game() {
-        use rand::{thread_rng, Rng};
-
-        let (score, cleared) = play_many_games(200,
-                                               |moves, _, _| *thread_rng().choose(&moves).unwrap());
-        println!("Best of 200, max score = {}", score);
-        println!("Cleared {} lines", cleared);
-    }
-
-    #[test]
-    fn test_slightly_less_stupid_game() {
-        let resulting_score =
-            |mv: &Move, board: &Board, pieces: [Option<&'static Piece>; 3]| -> i64 {
-                let (state, _) = GameState {
-                        board: board.clone(),
-                        score: 0,
-                        to_play: pieces,
-                    }
-                    .play(mv.piece_number, mv.x, mv.y)
-                    .unwrap();
-                if state.is_game_over() { -1000 } else { state.score as i64 }
-            };
-
-        let pick = |moves: &[Move], board: &Board, pieces: [Option<&'static Piece>; 3]| -> Move {
-            let best_move = moves.iter()
-                .max_by_key(|mv| resulting_score(mv, board, pieces))
-                .unwrap();
-
-            *best_move
-        };
-
-        let (score, cleared) = play_many_games(20000, pick);
-        println!("Best of 20000, max score = {}", score);
-        println!("Cleared {} lines", cleared);
     }
 }
