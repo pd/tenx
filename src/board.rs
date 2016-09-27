@@ -1,6 +1,5 @@
 use rand::{thread_rng, Rng};
 use std::fmt;
-use std::collections::HashMap;
 
 pub type Points = u64;
 
@@ -12,6 +11,7 @@ pub enum Line {
 
 #[derive(Clone, Copy)]
 pub struct Piece {
+    pub id: usize,
     pub name: &'static str,
     pub value: Points,
     pub occ: u32,
@@ -50,8 +50,9 @@ impl Piece {
 }
 
 macro_rules! define_piece {
-    ($name:expr, $bits:expr) => {
+    ($id:expr, $name:expr, $bits:expr) => {
         Piece {
+            id:    $id,
             name:  $name,
             occ:   $bits,
             value: ($bits as u32).count_ones() as u64,
@@ -62,34 +63,48 @@ macro_rules! define_piece {
 lazy_static! {
     #[cfg_attr(rustfmt, rustfmt_skip)]
     pub static ref PIECES: [Piece; 19] = [
-        define_piece!(/* 00 */ "Uni",     0b1),
-        define_piece!(/* 01 */ "DuoUD",   0b100001),
-        define_piece!(/* 02 */ "DuoLR",   0b11),
-        define_piece!(/* 03 */ "TriUD",   0b10000100001),
-        define_piece!(/* 04 */ "TriLR",   0b111),
-        define_piece!(/* 05 */ "TriNW",   0b1000011),
-        define_piece!(/* 06 */ "TriNE",   0b100011),
-        define_piece!(/* 07 */ "TriSW",   0b1100010),
-        define_piece!(/* 08 */ "TriSE",   0b1100001),
-        define_piece!(/* 09 */ "QuadUD",  0b1000010000100001),
-        define_piece!(/* 10 */ "QuadLR",  0b1111),
-        define_piece!(/* 11 */ "Square2", 0b1100011),
-        define_piece!(/* 12 */ "Square3", 0b1110011100111),
-        define_piece!(/* 13 */ "EllNW",   0b001000010000111),
-        define_piece!(/* 14 */ "EllNE",   0b000010000100111),
-        define_piece!(/* 15 */ "EllSE",   0b1110000100001),
-        define_piece!(/* 16 */ "EllSW",   0b1110010000100),
-        define_piece!(/* 17 */ "PentUD",  0b100001000010000100001),
-        define_piece!(/* 18 */ "PentLR",  0b11111),
+        define_piece!( 0, "Uni",     0b1),
+        define_piece!( 1, "DuoUD",   0b100001),
+        define_piece!( 2, "DuoLR",   0b11),
+        define_piece!( 3, "TriUD",   0b10000100001),
+        define_piece!( 4, "TriLR",   0b111),
+        define_piece!( 5, "TriNW",   0b1000011),
+        define_piece!( 6, "TriNE",   0b100011),
+        define_piece!( 7, "TriSW",   0b1100010),
+        define_piece!( 8, "TriSE",   0b1100001),
+        define_piece!( 9, "QuadUD",  0b1000010000100001),
+        define_piece!(10, "QuadLR",  0b1111),
+        define_piece!(11, "Square2", 0b1100011),
+        define_piece!(12, "Square3", 0b1110011100111),
+        define_piece!(13, "EllNW",   0b001000010000111),
+        define_piece!(14, "EllNE",   0b000010000100111),
+        define_piece!(15, "EllSE",   0b1110000100001),
+        define_piece!(16, "EllSW",   0b1110010000100),
+        define_piece!(17, "PentUD",  0b100001000010000100001),
+        define_piece!(18, "PentLR",  0b11111),
     ];
 
-    pub static ref OFFSETS: HashMap<&'static str, Vec<(isize, isize)>> = {
-        let mut map = HashMap::new();
-        for pc in PIECES.iter() {
-            map.insert(pc.name, pc.offsets());
-        }
-        map
-    };
+    pub static ref OFFSETS: [Vec<(isize, isize)>; 19] = [
+        PIECES[0].offsets(),
+        PIECES[1].offsets(),
+        PIECES[2].offsets(),
+        PIECES[3].offsets(),
+        PIECES[4].offsets(),
+        PIECES[5].offsets(),
+        PIECES[6].offsets(),
+        PIECES[7].offsets(),
+        PIECES[8].offsets(),
+        PIECES[9].offsets(),
+        PIECES[10].offsets(),
+        PIECES[11].offsets(),
+        PIECES[12].offsets(),
+        PIECES[13].offsets(),
+        PIECES[14].offsets(),
+        PIECES[15].offsets(),
+        PIECES[16].offsets(),
+        PIECES[17].offsets(),
+        PIECES[18].offsets(),
+    ];
 }
 
 #[inline]
@@ -171,7 +186,7 @@ impl Board {
     }
 
     pub fn can_fit(&self, pc: &'static Piece, x: usize, y: usize) -> bool {
-        OFFSETS.get(pc.name).unwrap().iter().all(|&(dx, dy)| {
+        OFFSETS[pc.id].iter().all(|&(dx, dy)| {
             let (nx, ny) = dxy(x, dx, y, dy);
             in_bounds(nx, ny) && !self.is_occupied(nx as usize, ny as usize)
         })
@@ -188,7 +203,7 @@ impl Board {
         }
 
         let base = Board { squares: self.squares.clone() };
-        let board: Board = OFFSETS.get(pc.name).unwrap().iter().fold(base, |b, &(dx, dy)| {
+        let board: Board = OFFSETS[pc.id].iter().fold(base, |b, &(dx, dy)| {
             let (nx, ny) = dxy(x, dx, y, dy);
             b.put_square(pc, nx as usize, ny as usize)
         });

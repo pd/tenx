@@ -111,7 +111,7 @@ pub fn possible_moves(board: &Board, pieces: [Option<&'static Piece>; 3]) -> Vec
                 continue;
             }
 
-            if board.can_fit(&opt.unwrap(), x, y) {
+            if board.can_fit(opt.unwrap(), x, y) {
                 moves.push(Move {
                     piece_number: n,
                     x: x,

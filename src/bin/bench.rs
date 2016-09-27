@@ -12,14 +12,25 @@ fn play_game<F: Sync>(pick_move: F) -> (GameState, History)
     let mut state = GameState::new();
     let mut history: History = vec![];
 
-    while !state.is_game_over() {
+    loop {
         let moves = possible_moves(&state.board, state.to_play);
         let mv = pick_move(&moves, &state.board, state.to_play);
 
         match state.play(mv.piece_number, mv.x, mv.y) {
             Ok((next_state, changes)) => {
+                let done = {
+                    match changes[changes.len() - 1] {
+                        GameStateChange::GameOver => true,
+                        _ => false,
+                    }
+                };
+
                 state = next_state;
                 history.extend(changes);
+
+                if done {
+                    break;
+                }
             }
             Err(e) => panic!("Move {:?} failed: {:?}", mv, e),
         }
