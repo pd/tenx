@@ -58,11 +58,13 @@ fn play_game() -> (GameState, History) {
 }
 
 fn play_many(n: usize) {
-    let mut results: Vec<(GameState, History)> = vec![];
+    let mut results: Vec<Points> = vec![];
 
     for _ in 0..n {
-        results.push(play_game());
+        results.push(play_game().0.score);
     }
+
+    println!("Best score: {}", results.iter().max().unwrap());
 }
 
 fn play_many_par(n: usize) {
@@ -74,9 +76,12 @@ fn play_many_par(n: usize) {
         futs.push(pool.spawn(lazy(|| finished::<Points, ()>(play_game().0.score))));
     }
 
+    let mut scores = vec![];
     for fut in futs {
-        let _ = fut.wait();
+        scores.push(fut.wait().unwrap());
     }
+
+    println!("Best score: {}", scores.iter().max().unwrap());
 }
 
 fn main() {
