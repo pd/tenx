@@ -2,7 +2,6 @@ extern crate rand;
 #[macro_use(lazy_static)]
 extern crate lazy_static;
 extern crate itertools;
-extern crate rayon;
 
 pub mod board;
 use board::{Board, Line, Piece, Points, PlacementError};

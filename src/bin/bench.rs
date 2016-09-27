@@ -1,20 +1,38 @@
 extern crate tenx;
-extern crate rayon;
+extern crate futures;
+extern crate futures_cpupool;
 extern crate rand;
 extern crate itertools;
 
 use tenx::board::*;
 use tenx::*;
 
-fn play_game<F: Sync>(pick_move: F) -> (GameState, History)
-    where F: Fn(&[Move], &Board, [Option<&'static Piece>; 3]) -> Move
-{
+fn play_game() -> (GameState, History) {
     let mut state = GameState::new();
     let mut history: History = vec![];
 
+    let resulting_score = |mv: &Move, board: &Board, pieces: [Option<&'static Piece>; 3]| -> i64 {
+        let (state, _) = GameState {
+                board: board.clone(),
+                score: 0,
+                to_play: pieces,
+            }
+            .play(mv.piece_number, mv.x, mv.y)
+            .unwrap();
+        if state.is_game_over() { -1000 } else { state.score as i64 }
+    };
+
+    let pick = |moves: &[Move], board: &Board, pieces: [Option<&'static Piece>; 3]| -> Move {
+        let best_move = moves.iter()
+            .max_by_key(|mv| resulting_score(mv, board, pieces))
+            .unwrap();
+
+        *best_move
+    };
+
     loop {
         let moves = possible_moves(&state.board, state.to_play);
-        let mv = pick_move(&moves, &state.board, state.to_play);
+        let mv = pick(&moves, &state.board, state.to_play);
 
         match state.play(mv.piece_number, mv.x, mv.y) {
             Ok((next_state, changes)) => {
@@ -39,47 +57,29 @@ fn play_game<F: Sync>(pick_move: F) -> (GameState, History)
     (state, history)
 }
 
-fn play_many<F: Sync>(n: usize, pick_move: F)
-    where F: Fn(&[Move], &Board, [Option<&'static Piece>; 3]) -> Move
-{
+fn play_many(n: usize) {
     let mut results: Vec<(GameState, History)> = vec![];
 
     for _ in 0..n {
-        results.push(play_game(|moves, board, pieces| pick_move(moves, board, pieces)));
+        results.push(play_game());
     }
 }
 
-fn play_many_par<F: Sync>(n: usize, pick_move: F)
-    where F: Fn(&[Move], &Board, [Option<&'static Piece>; 3]) -> Move
-{
-    use rayon::prelude::*;
-    let mut results: Vec<(GameState, History)> = vec![];
+fn play_many_par(n: usize) {
+    use futures::{Future, finished, lazy};
 
-    (0..n)
-        .into_par_iter()
-        .map(|_| play_game(|moves, board, pieces| pick_move(moves, board, pieces)))
-        .collect_into(&mut results);
+    let pool = futures_cpupool::CpuPool::new(4);
+    let mut futs = vec![];
+    for _ in 0..n {
+        futs.push(pool.spawn(lazy(|| finished::<Points, ()>(play_game().0.score))));
+    }
+
+    for fut in futs {
+        let _ = fut.wait();
+    }
 }
 
 fn main() {
-    let resulting_score = |mv: &Move, board: &Board, pieces: [Option<&'static Piece>; 3]| -> i64 {
-        let (state, _) = GameState {
-                board: board.clone(),
-                score: 0,
-                to_play: pieces,
-            }
-            .play(mv.piece_number, mv.x, mv.y)
-            .unwrap();
-        if state.is_game_over() { -1000 } else { state.score as i64 }
-    };
-
-    let pick = |moves: &[Move], board: &Board, pieces: [Option<&'static Piece>; 3]| -> Move {
-        let best_move = moves.iter()
-            .max_by_key(|mv| resulting_score(mv, board, pieces))
-            .unwrap();
-
-        *best_move
-    };
 
     let n = std::env::var("N")
         .unwrap_or("200".into())
@@ -96,8 +96,8 @@ fn main() {
              if par { "" } else { "not " });
 
     if par {
-        play_many_par(n, pick);
+        play_many_par(n);
     } else {
-        play_many(n, pick);
+        play_many(n);
     }
 }
