@@ -186,6 +186,10 @@ impl Board {
     }
 
     pub fn can_fit(&self, pc: &'static Piece, x: usize, y: usize) -> bool {
+        if self.is_occupied(x, y) {
+            return false;
+        }
+
         OFFSETS[pc.id].iter().all(|&(dx, dy)| {
             let (nx, ny) = dxy(x, dx, y, dy);
             in_bounds(nx, ny) && !self.is_occupied(nx as usize, ny as usize)
