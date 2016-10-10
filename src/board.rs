@@ -1,5 +1,6 @@
 use rand::{thread_rng, Rng};
 use std::fmt;
+use itertools::Itertools;
 
 pub type Points = u64;
 
@@ -35,8 +36,6 @@ impl Piece {
     }
 
     pub fn offsets(&self) -> Vec<(isize, isize)> {
-        use itertools::Itertools;
-
         let bits = self.occ;
         let x1 = bits.trailing_zeros() as isize;
 

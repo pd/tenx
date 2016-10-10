@@ -5,6 +5,8 @@ extern crate itertools;
 
 pub mod board;
 use board::{Board, Line, Piece, Points, PlacementError};
+use itertools::Itertools;
+use std::ops::Not;
 
 pub type PlayResult = Result<(GameState, History), PlayError>;
 
@@ -99,10 +101,7 @@ pub struct Move {
 }
 
 pub fn possible_moves(board: &Board, pieces: [Option<&'static Piece>; 3]) -> Vec<Move> {
-    use itertools::Itertools;
-
     let mut moves: Vec<Move> = vec![];
-
     for (x, y) in (0..10).cartesian_product(0..10) {
         for n in 0..3 {
             let opt = pieces[n];
@@ -183,9 +182,6 @@ impl GameState {
     }
 
     pub fn is_game_over(&self) -> bool {
-        use itertools::Itertools;
-        use std::ops::Not;
-
         let remaining: Vec<&'static Piece> =
             self.to_play.iter().filter(|x| x.is_some()).map(|x| x.unwrap()).collect();
 
