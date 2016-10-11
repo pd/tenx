@@ -201,7 +201,7 @@ impl GameState {
 mod tests {
     use super::{GameState, GameStateChange};
     use board::Board;
-    use piece::PIECES;
+    use piece;
 
     #[test]
     fn test_new_game() {
@@ -225,11 +225,9 @@ mod tests {
     fn test_clear_three_lines() {
         let board = {
             let mut b = Board::new();
-            let uni = &PIECES[0];
-
             for y in 0..3 {
                 for x in 0..9 {
-                    b = b.put_square(uni, x, y);
+                    b = b.put_square(piece::by_name("Uni"), x, y);
                 }
             }
 
@@ -239,7 +237,9 @@ mod tests {
         let state = GameState {
             board: board,
             score: 0,
-            to_play: [Some(&PIECES[3]), Some(&PIECES[0]), Some(&PIECES[0])],
+            to_play: [Some(piece::by_name("TriUD")),
+                      Some(piece::by_name("Uni")),
+                      Some(piece::by_name("Uni"))],
         };
 
         // play TriUD at the NE edge
@@ -255,7 +255,7 @@ mod tests {
     fn test_losing() {
         let board = {
             let mut b = Board::new();
-            let uni = &PIECES[0];
+            let uni = piece::by_name("Uni");
 
             for y in 0..9 {
                 for x in 0..9 {
@@ -271,7 +271,9 @@ mod tests {
         let state = GameState {
             board: board,
             score: 0,
-            to_play: [Some(&PIECES[0]), Some(&PIECES[12]), Some(&PIECES[12])],
+            to_play: [Some(piece::by_name("Uni")),
+                      Some(piece::by_name("Square3")),
+                      Some(piece::by_name("Square3"))],
         };
 
         // Clear one line, but not enough to make space for the 3x3s. Game over.

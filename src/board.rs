@@ -1,4 +1,5 @@
-use piece::{Piece, OFFSETS};
+use piece;
+use piece::Piece;
 use bitboard::Line;
 
 use std::fmt;
@@ -83,7 +84,7 @@ impl Board {
             return false;
         }
 
-        OFFSETS[pc.id].iter().all(|&(dx, dy)| {
+        piece::offsets_of(pc).iter().all(|&(dx, dy)| {
             let (nx, ny) = dxy(x, dx, y, dy);
             in_bounds(nx, ny) && !self.is_occupied(nx as usize, ny as usize)
         })
@@ -100,7 +101,7 @@ impl Board {
         }
 
         let mut squares = self.squares.clone();
-        for &(dx, dy) in OFFSETS[pc.id].iter() {
+        for &(dx, dy) in piece::offsets_of(pc).iter() {
             let (nx, ny) = dxy(x, dx, y, dy);
             squares[index(nx as usize, ny as usize)] = Some(pc)
         }
@@ -157,16 +158,12 @@ impl fmt::Display for Board {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use piece::*;
+    use piece;
     use bitboard::Line;
     use itertools::Itertools;
 
-    fn piece_by_name(name: &str) -> &'static Piece {
-        PIECES.iter().find(|pc| pc.name == name).expect("no such piece")
-    }
-
     fn filled_board() -> Board {
-        let uni = piece_by_name("Uni");
+        let uni = piece::by_name("Uni");
         let all_squares = (0..10).cartesian_product(0..10);
         all_squares.fold(Board::new(), |b, (x, y)| b.put_square(uni, x, y))
     }
@@ -193,14 +190,14 @@ mod tests {
 
         // every piece can fit at (3, 0). this is a dumb test,
         // but establishes a baseline.
-        for pc in PIECES.iter() {
+        for pc in piece::all() {
             assert!(empty_board.can_fit(pc, 3, 0),
                     "Piece {} should fit at (3, 0)",
                     pc.name);
         }
 
         // but only pieces filled at (0, 0) can fit at the board's (0, 0)
-        for pc in PIECES.iter() {
+        for pc in piece::all() {
             if pc.occ.trailing_zeros() == 0 {
                 assert!(empty_board.can_fit(pc, 0, 0),
                         "Piece {} should fit at (0, 0)",
@@ -215,7 +212,7 @@ mod tests {
         // and no piece will fit anywhere on a full board
         let full = filled_board();
         assert_eq!(full.occupancy(), 100);
-        for pc in PIECES.iter() {
+        for pc in piece::all() {
             for (x, y) in (0..10).cartesian_product(0..10) {
                 assert!(!full.can_fit(pc, x, y));
             }
@@ -236,7 +233,7 @@ mod tests {
             }
         }
 
-        for pc in PIECES.iter() {
+        for pc in piece::all() {
             match pc.name {
                 "Uni" => {
                     assert_fit!(nearly_full, pc, (0, 0));

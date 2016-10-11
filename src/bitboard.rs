@@ -2,7 +2,8 @@ use std::fmt;
 use std::u64;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, Not};
 
-use piece::{Piece, PIECES, OFFSETS};
+use piece;
+use piece::Piece;
 use board::PlacementError;
 
 #[inline]
@@ -72,12 +73,8 @@ impl Bitboard {
         Bitboard(0, 0)
     }
 
-    fn lower_bits(&self) -> u64 {
-        self.0
-    }
-    fn higher_bits(&self) -> u64 {
-        self.1 & MASK_BOARD_HIGH_BITS
-    }
+    fn lower_bits(&self)  -> u64 { self.0 }
+    fn higher_bits(&self) -> u64 { self.1 & MASK_BOARD_HIGH_BITS }
 
     pub fn is_empty(&self) -> bool {
         self.lower_bits() == 0 && self.higher_bits() == 0
@@ -96,7 +93,7 @@ impl Bitboard {
             return false;
         }
 
-        OFFSETS[pc.id].iter().all(|&(dx, dy)| {
+        piece::offsets_of(pc).iter().all(|&(dx, dy)| {
             let (nx, ny) = dxy(x, dx, y, dy);
             in_bounds(nx, ny) && !self.is_occupied(nx as usize, ny as usize)
         })
@@ -116,7 +113,7 @@ impl Bitboard {
         }
 
         let mut board = self.clone();
-        for &(dx, dy) in OFFSETS[pc.id].iter() {
+        for &(dx, dy) in piece::offsets_of(pc).iter() {
             let (nx, ny) = dxy(x, dx, y, dy);
             board.set_bit(index(nx as usize, ny as usize));
         }
@@ -170,9 +167,9 @@ impl Bitboard {
 
     pub fn piece(&self, n: usize) -> Option<&'static Piece> {
         match n {
-            0 => Some(&PIECES[(self.1 >> 36) as usize & 0xf]),
-            1 => Some(&PIECES[(self.1 >> 41) as usize & 0xf]),
-            2 => Some(&PIECES[(self.1 >> 46) as usize & 0xf]),
+            0 => Some(piece::by_id((self.1 >> 36) as usize & 0xf)),
+            1 => Some(piece::by_id((self.1 >> 41) as usize & 0xf)),
+            2 => Some(piece::by_id((self.1 >> 46) as usize & 0xf)),
             _ => None,
         }
     }
@@ -252,12 +249,8 @@ impl fmt::Display for Bitboard {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use piece::*;
+    use piece;
     use itertools::Itertools;
-
-    fn piece_by_name(name: &str) -> &'static Piece {
-        PIECES.iter().find(|pc| pc.name == name).expect("no such piece")
-    }
 
     #[test]
     fn test_bitboard() {
@@ -266,7 +259,7 @@ mod tests {
         assert_eq!(board.occupancy(), 0);
 
         for (x, y) in (0..10).cartesian_product(0..10) {
-            match board.place(piece_by_name("Uni"), x, y) {
+            match board.place(piece::by_name("Uni"), x, y) {
                 Ok(new) => {
                     assert_eq!(new.occupancy(), 1);
                     assert!(new.is_occupied(x, y));
@@ -283,14 +276,14 @@ mod tests {
 
         // every piece can fit at (3, 0). this is a dumb test,
         // but establishes a baseline.
-        for pc in PIECES.iter() {
+        for pc in piece::all() {
             assert!(empty_board.can_fit(pc, 3, 0),
                     "Piece {} should fit at (3, 0)",
                     pc.name);
         }
 
         // but only pieces filled at (0, 0) can fit at the board's (0, 0)
-        for pc in PIECES.iter() {
+        for pc in piece::all() {
             if pc.occ.trailing_zeros() == 0 {
                 assert!(empty_board.can_fit(pc, 0, 0),
                         "Piece {} should fit at (0, 0)",
@@ -310,7 +303,7 @@ mod tests {
                 new
             });
         assert_eq!(full.occupancy(), 100);
-        for pc in PIECES.iter() {
+        for pc in piece::all() {
             for (x, y) in (0..10).cartesian_product(0..10) {
                 assert!(!full.can_fit(pc, x, y));
             }
@@ -331,7 +324,7 @@ mod tests {
             }
         }
 
-        for pc in PIECES.iter() {
+        for pc in piece::all() {
             match pc.name {
                 "Uni" => {
                     assert_fit!(nearly_full, pc, (0, 0));

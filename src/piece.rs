@@ -1,8 +1,25 @@
 use rand::{thread_rng, Rng};
 use std::fmt;
+use std::slice::Iter;
 use itertools::Itertools;
 
 pub type Points = u64;
+
+pub fn all() -> Iter<'static, Piece> {
+    ALL.iter()
+}
+
+pub fn by_name(name: &str) -> &'static Piece {
+    all().find(|pc| pc.name == name).expect("no such piece")
+}
+
+pub fn by_id(id: usize) -> &'static Piece {
+    &ALL[id - 1]
+}
+
+pub fn offsets_of(pc: &'static Piece) -> &'static Vec<(isize, isize)> {
+    &OFFSETS[pc.id]
+}
 
 #[derive(Clone, Copy)]
 pub struct Piece {
@@ -20,8 +37,8 @@ impl fmt::Debug for Piece {
 
 impl Piece {
     pub fn random() -> &'static Piece {
-        let n = thread_rng().gen_range(0, PIECES.len());
-        &PIECES[n]
+        let n = thread_rng().gen_range(0, ALL.len());
+        by_id(n + 1)
     }
 
     pub fn offsets(&self) -> Vec<(isize, isize)> {
@@ -54,7 +71,7 @@ macro_rules! define_piece {
 
 lazy_static! {
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    pub static ref PIECES: [Piece; 19] = [
+    static ref ALL: [Piece; 19] = [
         define_piece!( 1, "Uni",     0b1),
         define_piece!( 2, "DuoUD",   0b100001),
         define_piece!( 3, "DuoLR",   0b11),
@@ -76,26 +93,26 @@ lazy_static! {
         define_piece!(19, "PentLR",  0b11111),
     ];
 
-    pub static ref OFFSETS: [Vec<(isize, isize)>; 20] = [
+    static ref OFFSETS: [Vec<(isize, isize)>; 20] = [
         vec![],
-        PIECES[0].offsets(),
-        PIECES[1].offsets(),
-        PIECES[2].offsets(),
-        PIECES[3].offsets(),
-        PIECES[4].offsets(),
-        PIECES[5].offsets(),
-        PIECES[6].offsets(),
-        PIECES[7].offsets(),
-        PIECES[8].offsets(),
-        PIECES[9].offsets(),
-        PIECES[10].offsets(),
-        PIECES[11].offsets(),
-        PIECES[12].offsets(),
-        PIECES[13].offsets(),
-        PIECES[14].offsets(),
-        PIECES[15].offsets(),
-        PIECES[16].offsets(),
-        PIECES[17].offsets(),
-        PIECES[18].offsets(),
+        by_id(1).offsets(),
+        by_id(2).offsets(),
+        by_id(3).offsets(),
+        by_id(4).offsets(),
+        by_id(5).offsets(),
+        by_id(6).offsets(),
+        by_id(7).offsets(),
+        by_id(8).offsets(),
+        by_id(9).offsets(),
+        by_id(10).offsets(),
+        by_id(11).offsets(),
+        by_id(12).offsets(),
+        by_id(13).offsets(),
+        by_id(14).offsets(),
+        by_id(15).offsets(),
+        by_id(16).offsets(),
+        by_id(17).offsets(),
+        by_id(18).offsets(),
+        by_id(19).offsets(),
     ];
 }
