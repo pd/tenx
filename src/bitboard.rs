@@ -29,11 +29,11 @@ pub enum Line {
 
 macro_rules! line_mask {
     (x: $col:expr) => {
-        (0..10).fold(Bitboard(0, MASK_PIECES), |board, y| board.fill_square($col, y))
+        (0..10).fold(Bitboard::new(), |board, y| board.fill_square($col, y))
     };
 
     (y: $row:expr) => {
-        (0..10).fold(Bitboard(0, MASK_PIECES), |board, x| board.fill_square(x, $row))
+        (0..10).fold(Bitboard::new(), |board, x| board.fill_square(x, $row))
     }
 }
 
@@ -60,7 +60,7 @@ lazy_static! {
 pub struct Bitboard(u64, u64);
 
 const MASK_BOARD_HIGH_BITS: u64 = 0xfffffffff;
-const MASK_PIECES: u64 = 0xfff << 36;
+// const MASK_PIECES: u64 = 0xfff << 36;
 
 // #[allow(dead_code)]
 // const MASK_BOARD: Bitboard = Bitboard(u64::MAX, MASK_BOARD_HIGH_BITS);
@@ -360,18 +360,20 @@ mod tests {
                 let mut new = b.clone();
                 new.set_bit(index(x, y));
                 new
-            });
+            }).with_pieces([piece::by_name("Uni"),
+                            piece::by_name("Uni"),
+                            piece::by_name("Uni")]);
 
         for x in 0..10 {
             let new = board.clear(Line::Col(x));
             assert_eq!(new.occupancy(), 90);
-            assert_eq!(new.filled().len(), 9,
-                       "After clearing column {}, should have 9 filled lines; got: {:?}",
-                       x, new.filled());
+            assert_eq!(new.filled().len(), 9);
 
             for y in 0..10 {
                 assert!(!new.is_occupied(x, y));
             }
+
+            assert!(new.pieces().iter().all(|pc| pc.is_some()));
         }
 
         for y in 0..10 {
@@ -381,6 +383,7 @@ mod tests {
             for x in 0..10 {
                 assert!(!new.is_occupied(x, y));
             }
+            assert!(new.pieces().iter().all(|pc| pc.is_some()));
         }
     }
 

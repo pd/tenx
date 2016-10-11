@@ -7,8 +7,8 @@ pub mod bitboard;
 pub mod board;
 pub mod piece;
 
-use bitboard::Line;
-use board::{Board, PlacementError};
+use board::PlacementError;
+use bitboard::{Line, Bitboard};
 use piece::{Piece, Points};
 use itertools::Itertools;
 use std::ops::Not;
@@ -60,34 +60,24 @@ pub type History = Vec<GameStateChange>;
 
 #[derive(Debug)]
 pub struct GameState {
-    pub board: Board,
+    pub board: Bitboard,
     pub score: Points,
-    pub to_play: [Option<&'static Piece>; 3],
 }
 
-fn generate_pieces() -> ([Option<&'static Piece>; 3], GameStateChange) {
+fn generate_pieces() -> ([&'static Piece; 3], GameStateChange) {
     let pieces = [Piece::random(), Piece::random(), Piece::random()];
     let change = GameStateChange::Gen { pieces: pieces };
-    ([Some(pieces[0]), Some(pieces[1]), Some(pieces[2])], change)
+    (pieces, change)
 }
 
-fn played_piece(to_play: &[Option<&'static Piece>; 3],
-                index: usize)
-                -> [Option<&'static Piece>; 3] {
-    [if index == 0 { None } else { to_play[0] },
-     if index == 1 { None } else { to_play[1] },
-     if index == 2 { None } else { to_play[2] }]
-}
-
-fn clear_filled(board: Board) -> (Board, History) {
+fn clear_filled(board: Bitboard) -> (Bitboard, History) {
     // kinda guessing at the scoring values right now:
     // I *think* the first cleared line is worth 10, all extras are worth 20.
     // But it's tedious to play through the game and validate that reliably...
     let mut cleared = board;
     let mut history: History = vec![];
 
-    let filled = cleared.filled();
-    for (i, &line) in filled.iter().enumerate() {
+    for (i, &line) in cleared.filled().iter().enumerate() {
         cleared = cleared.clear(line);
         history.push(GameStateChange::Clear {
             line: line,
@@ -105,8 +95,10 @@ pub struct Move {
     pub y: usize,
 }
 
-pub fn possible_moves(board: &Board, pieces: [Option<&'static Piece>; 3]) -> Vec<Move> {
+pub fn possible_moves(board: &Bitboard) -> Vec<Move> {
     let mut moves: Vec<Move> = vec![];
+    let pieces = board.pieces();
+
     for (x, y) in (0..10).cartesian_product(0..10) {
         for n in 0..3 {
             let opt = pieces[n];
@@ -130,9 +122,8 @@ pub fn possible_moves(board: &Board, pieces: [Option<&'static Piece>; 3]) -> Vec
 impl GameState {
     pub fn new() -> GameState {
         GameState {
-            board: Board::new(),
+            board: Bitboard::new().with_pieces([Piece::random(), Piece::random(), Piece::random()]),
             score: 0,
-            to_play: [Some(Piece::random()), Some(Piece::random()), Some(Piece::random())],
         }
     }
 
@@ -143,10 +134,10 @@ impl GameState {
             return Err(PieceOutOfBounds(pc_number));
         }
 
-        match self.to_play[pc_number] {
+        match self.board.piece(pc_number) {
             None => Err(PiecePlayed(pc_number)),
             Some(pc) => {
-                let board = try!(self.board.place(pc, x, y));
+                let board = try!(self.board.place(pc, x, y)).without_piece(pc_number);
 
                 let mut history: History = vec![GameStateChange::Play {
                                                     piece: pc,
@@ -155,14 +146,14 @@ impl GameState {
                                                     points: pc.value,
                                                 }];
 
-                let to_play = {
-                    let remaining = played_piece(&self.to_play, pc_number);
+                let board = {
+                    let remaining = board.pieces();
                     if remaining.iter().all(|o| o.is_none()) {
                         let (pieces, gen) = generate_pieces();
                         history.push(gen);
-                        pieces
+                        board.with_pieces(pieces)
                     } else {
-                        remaining
+                        board
                     }
                 };
 
@@ -174,7 +165,6 @@ impl GameState {
                 let next_state = GameState {
                     board: cleared,
                     score: self.score + points_scored,
-                    to_play: to_play,
                 };
 
                 if next_state.is_game_over() {
@@ -188,7 +178,7 @@ impl GameState {
 
     pub fn is_game_over(&self) -> bool {
         let remaining: Vec<&'static Piece> =
-            self.to_play.iter().filter(|x| x.is_some()).map(|x| x.unwrap()).collect();
+            self.board.pieces().iter().filter(|x| x.is_some()).map(|x| x.unwrap()).collect();
 
         (0..10)
             .cartesian_product(0..10)
@@ -200,7 +190,8 @@ impl GameState {
 #[cfg(test)]
 mod tests {
     use super::{GameState, GameStateChange};
-    use board::Board;
+    use itertools::Itertools;
+    use bitboard::Bitboard;
     use piece;
 
     #[test]
@@ -208,7 +199,7 @@ mod tests {
         let state = GameState::new();
         assert_eq!(state.score, 0);
         assert!(state.board.is_empty());
-        assert!(state.to_play.iter().all(|s| s.is_some()));
+        assert!(state.board.pieces().iter().all(|s| s.is_some()));
     }
 
     #[test]
@@ -223,23 +214,15 @@ mod tests {
 
     #[test]
     fn test_clear_three_lines() {
-        let board = {
-            let mut b = Board::new();
-            for y in 0..3 {
-                for x in 0..9 {
-                    b = b.put_square(piece::by_name("Uni"), x, y);
-                }
-            }
-
-            b
-        };
+        let board = (0..9)
+            .cartesian_product(0..3)
+            .fold(Bitboard::new(), |board, (x, y)| board.fill_square(x, y));
 
         let state = GameState {
-            board: board,
+            board: board.with_pieces([piece::by_name("TriUD"),
+                                      piece::by_name("Uni"),
+                                      piece::by_name("Uni")]),
             score: 0,
-            to_play: [Some(piece::by_name("TriUD")),
-                      Some(piece::by_name("Uni")),
-                      Some(piece::by_name("Uni"))],
         };
 
         // play TriUD at the NE edge
@@ -254,12 +237,11 @@ mod tests {
     #[test]
     fn test_losing() {
         let board = {
-            let mut b = Board::new();
-            let uni = piece::by_name("Uni");
+            let mut b = Bitboard::new();
 
             for y in 0..9 {
                 for x in 0..9 {
-                    b = b.put_square(uni, x, y);
+                    b = b.fill_square(x, y);
                 }
             }
 
@@ -269,11 +251,10 @@ mod tests {
         assert_eq!(board.filled().len(), 0);
 
         let state = GameState {
-            board: board,
+            board: board.with_pieces([piece::by_name("Uni"),
+                                      piece::by_name("Square3"),
+                                      piece::by_name("Square3")]),
             score: 0,
-            to_play: [Some(piece::by_name("Uni")),
-                      Some(piece::by_name("Square3")),
-                      Some(piece::by_name("Square3"))],
         };
 
         // Clear one line, but not enough to make space for the 3x3s. Game over.

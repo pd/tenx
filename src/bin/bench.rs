@@ -4,36 +4,35 @@ extern crate futures_cpupool;
 extern crate rand;
 extern crate itertools;
 
-use tenx::board::*;
-use tenx::piece::{Piece, Points};
+use tenx::bitboard::Bitboard;
+use tenx::piece::Points;
 use tenx::*;
 
 fn play_game() -> (GameState, History) {
     let mut state = GameState::new();
     let mut history: History = vec![];
 
-    let resulting_score = |mv: &Move, board: &Board, pieces: [Option<&'static Piece>; 3]| -> i64 {
+    let resulting_score = |mv: &Move, board: &Bitboard| -> i64 {
         let (state, _) = GameState {
                 board: board.clone(),
                 score: 0,
-                to_play: pieces,
             }
             .play(mv.piece_number, mv.x, mv.y)
             .unwrap();
         if state.is_game_over() { -1000 } else { state.score as i64 }
     };
 
-    let pick = |moves: &[Move], board: &Board, pieces: [Option<&'static Piece>; 3]| -> Move {
+    let pick = |moves: &[Move], board: &Bitboard| -> Move {
         let best_move = moves.iter()
-            .max_by_key(|mv| resulting_score(mv, board, pieces))
+            .max_by_key(|mv| resulting_score(mv, board))
             .unwrap();
 
         *best_move
     };
 
     loop {
-        let moves = possible_moves(&state.board, state.to_play);
-        let mv = pick(&moves, &state.board, state.to_play);
+        let moves = possible_moves(&state.board);
+        let mv = pick(&moves, &state.board);
 
         match state.play(mv.piece_number, mv.x, mv.y) {
             Ok((next_state, changes)) => {
@@ -86,7 +85,6 @@ fn play_many_par(n: usize) {
 }
 
 fn main() {
-
     let n = std::env::var("N")
         .unwrap_or("200".into())
         .parse::<usize>()
