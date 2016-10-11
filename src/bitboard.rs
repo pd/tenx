@@ -154,24 +154,27 @@ impl Bitboard {
         }
     }
 
-    pub fn with_to_play(&self, to_play: [&'static Piece; 3]) -> Bitboard {
+    pub fn with_pieces(&self, pieces: [&'static Piece; 3]) -> Bitboard {
         let mut new = self.clone();
-        new.1 |= (to_play[0].id as u64) << 36 | (to_play[1].id as u64) << 41 |
-                 (to_play[2].id as u64) << 46;
+        new.1 |= (pieces[0].id as u64) << 36 | (pieces[1].id as u64) << 41 |
+                 (pieces[2].id as u64) << 46;
         new
     }
 
-    pub fn to_play(&self) -> [Option<&'static Piece>; 3] {
+    pub fn without_piece(&self, n: usize) -> Bitboard {
+        let mut new = self.clone();
+        let mask = (0xf as u64) << (36 + 5 * n);
+        new.1 &= !mask;
+        new
+    }
+
+    pub fn pieces(&self) -> [Option<&'static Piece>; 3] {
         [self.piece(0), self.piece(1), self.piece(2)]
     }
 
     pub fn piece(&self, n: usize) -> Option<&'static Piece> {
-        match n {
-            0 => Some(piece::by_id((self.1 >> 36) as usize & 0xf)),
-            1 => Some(piece::by_id((self.1 >> 41) as usize & 0xf)),
-            2 => Some(piece::by_id((self.1 >> 46) as usize & 0xf)),
-            _ => None,
-        }
+        let id = (self.1 >> 36 + 5 * n) as usize & 0xf;
+        if id == 0 { None } else { Some(piece::by_id(id)) }
     }
 
     fn is_bit_set(&self, n: usize) -> bool {
@@ -253,7 +256,7 @@ mod tests {
     use itertools::Itertools;
 
     #[test]
-    fn test_bitboard() {
+    fn test_place_piece() {
         let board = Bitboard::new();
         assert!(board.is_empty());
         assert_eq!(board.occupancy(), 0);
@@ -270,7 +273,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bb_fit_obvious() {
+    fn test_fit_obvious() {
         let empty_board = Bitboard::new();
         assert_eq!(empty_board.occupancy(), 0);
 
@@ -351,7 +354,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bb_clear() {
+    fn test_clear() {
         let board = (0..10).cartesian_product(0..10)
             .fold(Bitboard::new(), |b, (x, y)| {
                 let mut new = b.clone();
@@ -381,4 +384,24 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_pieces() {
+        let board = Bitboard::new().with_pieces([piece::by_name("Uni"),
+                                                 piece::by_name("DuoUD"),
+                                                 piece::by_name("Square3")]);
+
+        assert_eq!(board.piece(0).expect("piece 0 should be present").name, "Uni");
+        assert_eq!(board.piece(1).expect("piece 1 should be present").name, "DuoUD");
+        assert_eq!(board.piece(2).expect("piece 2 should be present").name, "Square3");
+
+        let fewer = board.without_piece(0);
+        assert!(fewer.piece(0).is_none());
+        assert_eq!(fewer.piece(1).expect("piece 1 should be present").name, "DuoUD");
+        assert_eq!(fewer.piece(2).expect("piece 2 should be present").name, "Square3");
+
+        let to_play = fewer.without_piece(2).pieces();
+        assert!(to_play[0].is_none());
+        assert!(to_play[1].is_some());
+        assert!(to_play[2].is_none());
+    }
 }
