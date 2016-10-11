@@ -5,6 +5,7 @@ extern crate rand;
 extern crate itertools;
 
 use tenx::board::*;
+use tenx::piece::{Piece, Points};
 use tenx::*;
 
 fn play_game() -> (GameState, History) {

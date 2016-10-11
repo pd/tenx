@@ -3,8 +3,13 @@ extern crate rand;
 extern crate lazy_static;
 extern crate itertools;
 
+pub mod bitboard;
 pub mod board;
-use board::{Board, Line, Piece, Points, PlacementError};
+pub mod piece;
+
+use bitboard::Line;
+use board::{Board, PlacementError};
+use piece::{Piece, Points};
 use itertools::Itertools;
 use std::ops::Not;
 
@@ -195,7 +200,8 @@ impl GameState {
 #[cfg(test)]
 mod tests {
     use super::{GameState, GameStateChange};
-    use board::{Board, PIECES};
+    use board::Board;
+    use piece::PIECES;
 
     #[test]
     fn test_new_game() {
