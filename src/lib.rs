@@ -154,12 +154,11 @@ impl GameState {
     }
 
     pub fn is_game_over(&self) -> bool {
-        let remaining: Vec<&'static Piece> =
-            self.board.pieces().iter().filter(|x| x.is_some()).map(|x| x.unwrap()).collect();
-
-        (0..10)
-            .cartesian_product(0..10)
-            .any(|(x, y)| remaining.iter().any(|pc| self.board.can_fit(pc, x, y)))
+        self.board
+            .pieces()
+            .iter()
+            .flat_map(|x| x)
+            .any(|pc| (0..10).cartesian_product(0..10).any(|(x, y)| self.board.can_fit(pc, x, y)))
             .not()
     }
 
