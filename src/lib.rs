@@ -6,6 +6,7 @@ extern crate itertools;
 pub mod board;
 pub mod piece;
 
+use std::iter::Iterator;
 use itertools::Itertools;
 use std::ops::Not;
 use board::{Bitboard, Line, PlacementError};
@@ -238,11 +239,7 @@ mod tests {
 
     #[test]
     fn test_clear_three_lines() {
-        let board = (0..9)
-            .cartesian_product(0..3)
-            .fold(Bitboard::new(),
-                  |board, (x, y)| board.with_filled_square(x, y));
-
+        let board = Bitboard::filled_at((0..9).cartesian_product(0..3));
         let state = GameState {
             board: board.with_pieces([piece::by_name("TriUD"),
                                       piece::by_name("Uni"),
@@ -265,10 +262,7 @@ mod tests {
 
     #[test]
     fn test_losing() {
-        let board = (0..9)
-            .cartesian_product(0..9)
-            .fold(Bitboard::new(),
-                  |board, (x, y)| board.with_filled_square(x, y));
+        let board = Bitboard::filled_at((0..9).cartesian_product(0..9));
 
         assert_eq!(board.filled().len(), 0);
 

@@ -58,6 +58,12 @@ impl Bitboard {
         Bitboard(0, 0)
     }
 
+    pub fn filled_at<I>(squares: I) -> Bitboard
+        where I: Iterator<Item = (usize, usize)>
+    {
+        squares.fold(Bitboard::new(), |b, (x, y)| b.with_filled_square(x, y))
+    }
+
     fn lower_bits(&self)  -> u64 { self.0 }
     fn higher_bits(&self) -> u64 { self.1 & MASK_BOARD_HIGH_BITS }
 
