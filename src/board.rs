@@ -68,12 +68,6 @@ pub struct Bitboard(pub u64, pub u64);
 const MASK_BOARD_HIGH_BITS: u64 = 0xfffffffff;
 const MASK_PIECES: u64 = 0x7fff << 36;
 
-// #[allow(dead_code)]
-// const MASK_BOARD: Bitboard = Bitboard(u64::MAX, MASK_BOARD_HIGH_BITS);
-// const MASK_PIECE0: u64 = 0xf << 36;
-// const MASK_PIECE1: u64 = 0xf << 41;
-// const MASK_PIECE2: u64 = 0xf << 46;
-
 impl Bitboard {
     pub fn new() -> Bitboard {
         Bitboard(0, 0)
