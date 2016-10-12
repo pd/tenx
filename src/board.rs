@@ -249,7 +249,7 @@ impl fmt::Display for Bitboard {
     }
 }
 
-fn piece_boards(id: usize) -> [Bitboard; 100] {
+fn generate_piece_boards(id: usize) -> [Bitboard; 100] {
     let pc = piece::by_id(id);
     let mut boards: [Bitboard; 100] = [Bitboard::new(); 100];
 
@@ -281,25 +281,25 @@ fn piece_boards(id: usize) -> [Bitboard; 100] {
 
 lazy_static! {
     static ref PIECE_BOARDS: [[Bitboard; 100]; 19] = [
-        piece_boards(1),
-        piece_boards(2),
-        piece_boards(3),
-        piece_boards(4),
-        piece_boards(5),
-        piece_boards(6),
-        piece_boards(7),
-        piece_boards(8),
-        piece_boards(9),
-        piece_boards(10),
-        piece_boards(11),
-        piece_boards(12),
-        piece_boards(13),
-        piece_boards(14),
-        piece_boards(15),
-        piece_boards(16),
-        piece_boards(17),
-        piece_boards(18),
-        piece_boards(19),
+        generate_piece_boards(1),
+        generate_piece_boards(2),
+        generate_piece_boards(3),
+        generate_piece_boards(4),
+        generate_piece_boards(5),
+        generate_piece_boards(6),
+        generate_piece_boards(7),
+        generate_piece_boards(8),
+        generate_piece_boards(9),
+        generate_piece_boards(10),
+        generate_piece_boards(11),
+        generate_piece_boards(12),
+        generate_piece_boards(13),
+        generate_piece_boards(14),
+        generate_piece_boards(15),
+        generate_piece_boards(16),
+        generate_piece_boards(17),
+        generate_piece_boards(18),
+        generate_piece_boards(19),
     ];
 }
 
