@@ -4,7 +4,7 @@ extern crate futures_cpupool;
 extern crate rand;
 extern crate itertools;
 
-use tenx::bitboard::Bitboard;
+use tenx::board::Bitboard;
 use tenx::*;
 
 fn play_game() -> (GameState, History) {

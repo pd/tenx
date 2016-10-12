@@ -3,15 +3,13 @@ extern crate rand;
 extern crate lazy_static;
 extern crate itertools;
 
-pub mod bitboard;
 pub mod board;
 pub mod piece;
 
-use board::PlacementError;
-use bitboard::{Line, Bitboard};
-use piece::{Piece, Points};
 use itertools::Itertools;
 use std::ops::Not;
+use board::{Bitboard, Line, PlacementError};
+use piece::{Piece, Points};
 
 pub type PlayResult = Result<(GameState, History), PlayError>;
 
@@ -191,7 +189,7 @@ impl GameState {
 mod tests {
     use super::{GameState, GameStateChange};
     use itertools::Itertools;
-    use bitboard::Bitboard;
+    use board::Bitboard;
     use piece;
 
     #[test]
