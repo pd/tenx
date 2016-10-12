@@ -164,27 +164,10 @@ impl GameState {
     }
 
     pub fn moves(&self) -> Vec<Move> {
-        let mut moves: Vec<Move> = vec![];
-        let pieces = self.pieces();
-
-        for (x, y) in (0..10).cartesian_product(0..10) {
-            for n in 0..3 {
-                let opt = pieces[n];
-                if opt.is_none() {
-                    continue;
-                }
-
-                if self.board.can_fit(opt.unwrap(), x, y) {
-                    moves.push(Move {
-                        piece_number: n,
-                        x: x,
-                        y: y,
-                    });
-                }
-            }
-        }
-
-        moves
+        (0..3).fold(vec![], |mut v, n| {
+            v.extend(self.moves_for_piece(n));
+            v
+        })
     }
 
     pub fn moves_for_piece(&self, piece_number: usize) -> Vec<Move> {
