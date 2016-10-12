@@ -4,49 +4,44 @@ extern crate futures_cpupool;
 extern crate rand;
 extern crate itertools;
 
-use tenx::board::*;
 use tenx::*;
+
+fn game_over(history: &History) -> bool {
+    if history.is_empty() {
+        return false;
+    }
+    match history[history.len() - 1] {
+        GameStateChange::GameOver => true,
+        _ => false,
+    }
+}
+
+fn pick_best_move(state: &GameState) -> Move {
+    let moves = state.moves();
+    let best = moves.iter()
+        .max_by_key(|mv| {
+            let (next, history) = state.play(&mv)
+                .expect("move generation produced invalid move");
+            if game_over(&history) { 0 } else { next.score }
+        })
+        .unwrap();
+
+    *best
+}
 
 fn play_game() -> (GameState, History) {
     let mut state = GameState::new();
     let mut history: History = vec![];
 
-    let resulting_score = |mv: &Move, board: &Board, pieces: [Option<&'static Piece>; 3]| -> i64 {
-        let (state, _) = GameState {
-                board: board.clone(),
-                score: 0,
-                to_play: pieces,
-            }
-            .play(mv.piece_number, mv.x, mv.y)
-            .unwrap();
-        if state.is_game_over() { -1000 } else { state.score as i64 }
-    };
-
-    let pick = |moves: &[Move], board: &Board, pieces: [Option<&'static Piece>; 3]| -> Move {
-        let best_move = moves.iter()
-            .max_by_key(|mv| resulting_score(mv, board, pieces))
-            .unwrap();
-
-        *best_move
-    };
-
     loop {
-        let moves = possible_moves(&state.board, state.to_play);
-        let mv = pick(&moves, &state.board, state.to_play);
+        let mv = pick_best_move(&state);
 
-        match state.play(mv.piece_number, mv.x, mv.y) {
+        match state.play(&mv) {
             Ok((next_state, changes)) => {
-                let done = {
-                    match changes[changes.len() - 1] {
-                        GameStateChange::GameOver => true,
-                        _ => false,
-                    }
-                };
-
                 state = next_state;
                 history.extend(changes);
 
-                if done {
+                if game_over(&history) {
                     break;
                 }
             }
@@ -57,14 +52,19 @@ fn play_game() -> (GameState, History) {
     (state, history)
 }
 
+fn show_best_game(games: Vec<(GameState, History)>) {
+    let (state, ref history) = *games.iter()
+        .max_by_key(|&&(ref gs, _)| gs.score)
+        .expect("no best game?");
+
+    println!("Best score: {} in {} moves", state.score, history.len());
+    println!("Final board:\n{}\n\n{:?}",
+             state.board,
+             state.board.pieces());
+}
+
 fn play_many(n: usize) {
-    let mut results: Vec<Points> = vec![];
-
-    for _ in 0..n {
-        results.push(play_game().0.score);
-    }
-
-    println!("Best score: {}", results.iter().max().unwrap());
+    show_best_game((0..n).map(|_| play_game()).collect());
 }
 
 fn play_many_par(n: usize) {
@@ -73,19 +73,18 @@ fn play_many_par(n: usize) {
     let pool = futures_cpupool::CpuPool::new(4);
     let mut futs = vec![];
     for _ in 0..n {
-        futs.push(pool.spawn(lazy(|| finished::<Points, ()>(play_game().0.score))));
+        futs.push(pool.spawn(lazy(|| finished::<(GameState, History), ()>(play_game()))));
     }
 
-    let mut scores = vec![];
+    let mut results = vec![];
     for fut in futs {
-        scores.push(fut.wait().unwrap());
+        results.push(fut.wait().unwrap());
     }
 
-    println!("Best score: {}", scores.iter().max().unwrap());
+    show_best_game(results);
 }
 
 fn main() {
-
     let n = std::env::var("N")
         .unwrap_or("200".into())
         .parse::<usize>()
