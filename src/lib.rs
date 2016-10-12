@@ -144,15 +144,12 @@ impl GameState {
                                                     points: pc.value,
                                                 }];
 
-                let board = {
-                    let remaining = board.pieces();
-                    if remaining.iter().all(|o| o.is_none()) {
-                        let (pieces, gen) = generate_pieces();
-                        history.push(gen);
-                        board.with_pieces(pieces)
-                    } else {
-                        board
-                    }
+                let board = if board.no_remaining_pieces() {
+                    let (pieces, gen) = generate_pieces();
+                    history.push(gen);
+                    board.with_pieces(pieces)
+                } else {
+                    board
                 };
 
                 let (cleared, changes) = clear_filled(board);

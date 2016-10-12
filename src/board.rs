@@ -174,6 +174,10 @@ impl Bitboard {
         new
     }
 
+    pub fn no_remaining_pieces(&self) -> bool {
+        (self.1 & MASK_PIECES) >> 36 == 0
+    }
+
     pub fn pieces(&self) -> [Option<&'static Piece>; 3] {
         [self.piece(0), self.piece(1), self.piece(2)]
     }
@@ -395,6 +399,8 @@ mod tests {
 
     #[test]
     fn test_pieces() {
+        assert!(Bitboard::new().no_remaining_pieces());
+
         let board = Bitboard::new().with_pieces([piece::by_name("Uni"),
                                                  piece::by_name("DuoUD"),
                                                  piece::by_name("Square3")]);
