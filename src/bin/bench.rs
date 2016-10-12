@@ -4,47 +4,44 @@ extern crate futures_cpupool;
 extern crate rand;
 extern crate itertools;
 
-use tenx::board::Bitboard;
 use tenx::*;
+
+fn game_over(history: &History) -> bool {
+    if history.is_empty() {
+        return false;
+    }
+    match history[history.len() - 1] {
+        GameStateChange::GameOver => true,
+        _ => false,
+    }
+}
+
+fn pick_best_move(state: &GameState) -> Move {
+    let moves = state.moves();
+    let best = moves.iter()
+        .max_by_key(|mv| {
+            let (next, history) = state.play(&mv)
+                .expect("move generation produced invalid move");
+            if game_over(&history) { 0 } else { next.score }
+        })
+        .unwrap();
+
+    *best
+}
 
 fn play_game() -> (GameState, History) {
     let mut state = GameState::new();
     let mut history: History = vec![];
 
-    let resulting_score = |mv: &Move, board: &Bitboard| -> i64 {
-        let (state, _) = GameState {
-                board: board.clone(),
-                score: 0,
-            }
-            .play(mv.piece_number, mv.x, mv.y)
-            .expect("received invalid move");
-        if state.is_game_over() { -1000 } else { state.score as i64 }
-    };
-
-    let pick = |moves: &[Move], board: &Bitboard| -> Move {
-        let best_move = moves.iter()
-            .max_by_key(|mv| resulting_score(mv, board))
-            .expect("no best move found");
-
-        *best_move
-    };
-
     loop {
-        let mv = pick(&possible_moves(&state.board), &state.board);
+        let mv = pick_best_move(&state);
 
-        match state.play(mv.piece_number, mv.x, mv.y) {
+        match state.play(&mv) {
             Ok((next_state, changes)) => {
-                let done = {
-                    match changes[changes.len() - 1] {
-                        GameStateChange::GameOver => true,
-                        _ => false,
-                    }
-                };
-
                 state = next_state;
                 history.extend(changes);
 
-                if done {
+                if game_over(&history) {
                     break;
                 }
             }

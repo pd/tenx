@@ -63,30 +63,6 @@ pub struct Move {
     pub y: usize,
 }
 
-pub fn possible_moves(board: &Bitboard) -> Vec<Move> {
-    let mut moves: Vec<Move> = vec![];
-    let pieces = board.pieces();
-
-    for (x, y) in (0..10).cartesian_product(0..10) {
-        for n in 0..3 {
-            let opt = pieces[n];
-            if opt.is_none() {
-                continue;
-            }
-
-            if board.can_fit(opt.unwrap(), x, y) {
-                moves.push(Move {
-                    piece_number: n,
-                    x: x,
-                    y: y,
-                });
-            }
-        }
-    }
-
-    moves
-}
-
 fn generate_pieces() -> ([&'static Piece; 3], GameStateChange) {
     let pieces = [Piece::random(), Piece::random(), Piece::random()];
     let change = GameStateChange::Gen { pieces: pieces };
@@ -125,17 +101,22 @@ impl GameState {
         }
     }
 
-    pub fn play(&self, pc_number: usize, x: usize, y: usize) -> PlayResult {
-        use PlayError::*;
+    pub fn pieces(&self) -> [Option<&'static Piece>; 3] {
+        self.board.pieces()
+    }
 
-        if pc_number > 2 {
-            return Err(PieceOutOfBounds(pc_number));
+    pub fn play(&self, mv: &Move) -> PlayResult {
+        use PlayError::*;
+        let &Move { piece_number: n, x, y } = mv;
+
+        if n > 2 {
+            return Err(PieceOutOfBounds(n));
         }
 
-        match self.board.piece(pc_number) {
-            None => Err(PiecePlayed(pc_number)),
+        match self.board.piece(n) {
+            None => Err(PiecePlayed(n)),
             Some(pc) => {
-                let board = try!(self.board.place(pc, x, y)).without_piece(pc_number);
+                let board = try!(self.board.place(pc, x, y)).without_piece(n);
 
                 let mut history: History = vec![GameStateChange::Play {
                                                     piece: pc,
@@ -180,11 +161,55 @@ impl GameState {
             .any(|(x, y)| remaining.iter().any(|pc| self.board.can_fit(pc, x, y)))
             .not()
     }
+
+    pub fn moves(&self) -> Vec<Move> {
+        let mut moves: Vec<Move> = vec![];
+        let pieces = self.pieces();
+
+        for (x, y) in (0..10).cartesian_product(0..10) {
+            for n in 0..3 {
+                let opt = pieces[n];
+                if opt.is_none() {
+                    continue;
+                }
+
+                if self.board.can_fit(opt.unwrap(), x, y) {
+                    moves.push(Move {
+                        piece_number: n,
+                        x: x,
+                        y: y,
+                    });
+                }
+            }
+        }
+
+        moves
+    }
+
+    pub fn moves_for_piece(&self, piece_number: usize) -> Vec<Move> {
+        match self.board.piece(piece_number) {
+            Some(pc) => {
+                let mut moves = vec![];
+                for (x, y) in (0..10).cartesian_product(0..10) {
+                    if !self.board.can_fit(pc, x, y) {
+                        continue;
+                    }
+                    moves.push(Move {
+                        piece_number: piece_number,
+                        x: x,
+                        y: y,
+                    });
+                }
+                moves
+            }
+            None => vec![],
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{GameState, GameStateChange};
+    use super::{GameState, GameStateChange, Move};
     use itertools::Itertools;
     use board::Bitboard;
     use piece;
@@ -200,7 +225,11 @@ mod tests {
     #[test]
     fn test_play_first_piece() {
         let initial_state = GameState::new();
-        let result = initial_state.play(0, 3, 0);
+        let result = initial_state.play(&Move {
+            piece_number: 0,
+            x: 3,
+            y: 0,
+        });
         assert!(result.is_ok(),
                 "Move failed! Err: {:?}\n\nStarting state: {:?}",
                 result.err().unwrap(),
@@ -221,7 +250,11 @@ mod tests {
         };
 
         // play TriUD at the NE edge
-        let result = state.play(0, 9, 0);
+        let result = state.play(&Move {
+            piece_number: 0,
+            x: 9,
+            y: 0,
+        });
         assert!(result.is_ok());
 
         let (new_state, history) = result.unwrap();
@@ -253,7 +286,11 @@ mod tests {
         };
 
         // Clear one line, but not enough to make space for the 3x3s. Game over.
-        let result = state.play(0, 9, 0);
+        let result = state.play(&Move {
+            piece_number: 0,
+            x: 9,
+            y: 0,
+        });
         assert!(result.is_ok());
 
         let (new_state, history) = result.unwrap();
