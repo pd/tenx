@@ -1,6 +1,7 @@
 use std::fmt;
 use std::u64;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, Not};
+use itertools::Itertools;
 
 use piece;
 use piece::Piece;
@@ -94,21 +95,16 @@ impl Bitboard {
     }
 
     pub fn can_fit(&self, pc: &'static Piece, x: usize, y: usize) -> bool {
-        if self.is_occupied(x, y) {
-            return false;
+        let mask = PIECE_BOARDS[pc.id - 1][index(x, y)];
+        if mask.is_empty() {
+            false
+        } else {
+            let masked = *self & PIECE_BOARDS[pc.id - 1][index(x, y)];
+            masked.is_empty()
         }
-
-        piece::offsets_of(pc).iter().all(|&(dx, dy)| {
-            let (nx, ny) = dxy(x, dx, y, dy);
-            in_bounds(nx, ny) && !self.is_occupied(nx as usize, ny as usize)
-        })
     }
 
-    pub fn place(&self,
-                 pc: &'static Piece,
-                 x: usize,
-                 y: usize)
-                 -> Result<Bitboard, PlacementError> {
+    pub fn place(&self, pc: &'static Piece, x: usize, y: usize) -> Result<Bitboard, PlacementError> {
         if !in_bounds(x as isize, y as isize) {
             return Err(PlacementError::OutOfBounds(x, y));
         }
@@ -117,13 +113,7 @@ impl Bitboard {
             return Err(PlacementError::Occupied(*pc, x, y));
         }
 
-        let mut board = self.clone();
-        for &(dx, dy) in piece::offsets_of(pc).iter() {
-            let (nx, ny) = dxy(x, dx, y, dy);
-            board.set_bit(index(nx as usize, ny as usize));
-        }
-
-        Ok(board)
+        Ok(*self | PIECE_BOARDS[pc.id - 1][index(x, y)])
     }
 
     pub fn filled(&self) -> Vec<Line> {
@@ -257,6 +247,60 @@ impl fmt::Display for Bitboard {
         }
         write!(f, "{}", s)
     }
+}
+
+fn piece_boards(id: usize) -> [Bitboard; 100] {
+    let pc = piece::by_id(id);
+    let mut boards: [Bitboard; 100] = [Bitboard::new(); 100];
+
+    for (x, y) in (0..10).cartesian_product(0..10) {
+        let result: Result<Bitboard, ()> = piece::offsets_of(pc)
+            .iter()
+            .fold(Ok(Bitboard::new()), |result, &(dx, dy)| {
+                if result.is_err() {
+                    return result;
+                }
+
+                let board = result.unwrap();
+                let (nx, ny) = dxy(x, dx, y, dy);
+                if !in_bounds(nx, ny) {
+                    Err(())
+                } else {
+                    Ok(board.fill_square(nx as usize, ny as usize))
+                }
+            });
+
+        boards[index(x, y)] = match result {
+            Ok(board) => board,
+            Err(_) => Bitboard::new(),
+        };
+    }
+
+    boards
+}
+
+lazy_static! {
+    static ref PIECE_BOARDS: [[Bitboard; 100]; 19] = [
+        piece_boards(1),
+        piece_boards(2),
+        piece_boards(3),
+        piece_boards(4),
+        piece_boards(5),
+        piece_boards(6),
+        piece_boards(7),
+        piece_boards(8),
+        piece_boards(9),
+        piece_boards(10),
+        piece_boards(11),
+        piece_boards(12),
+        piece_boards(13),
+        piece_boards(14),
+        piece_boards(15),
+        piece_boards(16),
+        piece_boards(17),
+        piece_boards(18),
+        piece_boards(19),
+    ];
 }
 
 #[cfg(test)]

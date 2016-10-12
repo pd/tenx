@@ -61,6 +61,9 @@ fn show_best_game(games: Vec<(GameState, History)>) {
         .expect("no best game?");
 
     println!("Best score: {} in {} moves", state.score, history.len());
+    println!("Final board:\n{}\n\n{:?}",
+             state.board,
+             state.board.pieces());
 }
 
 fn play_many(n: usize) {

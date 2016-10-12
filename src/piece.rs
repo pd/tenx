@@ -18,7 +18,7 @@ pub fn by_id(id: usize) -> &'static Piece {
 }
 
 pub fn offsets_of(pc: &'static Piece) -> &'static Vec<(isize, isize)> {
-    &OFFSETS[pc.id]
+    &OFFSETS[pc.id - 1]
 }
 
 #[derive(Clone, Copy)]
@@ -93,8 +93,7 @@ lazy_static! {
         define_piece!(19, "PentLR",  0b11111),
     ];
 
-    static ref OFFSETS: [Vec<(isize, isize)>; 20] = [
-        vec![],
+    static ref OFFSETS: [Vec<(isize, isize)>; 19] = [
         by_id(1).offsets(),
         by_id(2).offsets(),
         by_id(3).offsets(),
