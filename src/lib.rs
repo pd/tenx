@@ -57,36 +57,6 @@ impl GameStateChange {
 pub type History = Vec<GameStateChange>;
 
 #[derive(Debug, Copy, Clone)]
-pub struct GameState {
-    pub board: Bitboard,
-    pub score: Points,
-}
-
-fn generate_pieces() -> ([&'static Piece; 3], GameStateChange) {
-    let pieces = [Piece::random(), Piece::random(), Piece::random()];
-    let change = GameStateChange::Gen { pieces: pieces };
-    (pieces, change)
-}
-
-fn clear_filled(board: Bitboard) -> (Bitboard, History) {
-    // kinda guessing at the scoring values right now:
-    // I *think* the first cleared line is worth 10, all extras are worth 20.
-    // But it's tedious to play through the game and validate that reliably...
-    let mut cleared = board;
-    let mut history: History = vec![];
-
-    for (i, &line) in cleared.filled().iter().enumerate() {
-        cleared = cleared.clear(line);
-        history.push(GameStateChange::Clear {
-            line: line,
-            points: 10 * (i as Points + 1),
-        });
-    }
-
-    (cleared, history)
-}
-
-#[derive(Debug, Copy, Clone)]
 pub struct Move {
     pub piece_number: usize,
     pub x: usize,
@@ -115,6 +85,36 @@ pub fn possible_moves(board: &Bitboard) -> Vec<Move> {
     }
 
     moves
+}
+
+fn generate_pieces() -> ([&'static Piece; 3], GameStateChange) {
+    let pieces = [Piece::random(), Piece::random(), Piece::random()];
+    let change = GameStateChange::Gen { pieces: pieces };
+    (pieces, change)
+}
+
+fn clear_filled(board: Bitboard) -> (Bitboard, History) {
+    // kinda guessing at the scoring values right now:
+    // I *think* the first cleared line is worth 10, all extras are worth 20.
+    // But it's tedious to play through the game and validate that reliably...
+    let mut cleared = board;
+    let mut history: History = vec![];
+
+    for (i, &line) in cleared.filled().iter().enumerate() {
+        cleared = cleared.clear(line);
+        history.push(GameStateChange::Clear {
+            line: line,
+            points: 10 * (i as Points + 1),
+        });
+    }
+
+    (cleared, history)
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct GameState {
+    pub board: Bitboard,
+    pub score: Points,
 }
 
 impl GameState {
