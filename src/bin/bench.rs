@@ -5,7 +5,6 @@ extern crate rand;
 extern crate itertools;
 
 use tenx::bitboard::Bitboard;
-use tenx::piece::Points;
 use tenx::*;
 
 fn play_game() -> (GameState, History) {
@@ -18,21 +17,20 @@ fn play_game() -> (GameState, History) {
                 score: 0,
             }
             .play(mv.piece_number, mv.x, mv.y)
-            .unwrap();
+            .expect("received invalid move");
         if state.is_game_over() { -1000 } else { state.score as i64 }
     };
 
     let pick = |moves: &[Move], board: &Bitboard| -> Move {
         let best_move = moves.iter()
             .max_by_key(|mv| resulting_score(mv, board))
-            .unwrap();
+            .expect("no best move found");
 
         *best_move
     };
 
     loop {
-        let moves = possible_moves(&state.board);
-        let mv = pick(&moves, &state.board);
+        let mv = pick(&possible_moves(&state.board), &state.board);
 
         match state.play(mv.piece_number, mv.x, mv.y) {
             Ok((next_state, changes)) => {
@@ -57,14 +55,16 @@ fn play_game() -> (GameState, History) {
     (state, history)
 }
 
+fn show_best_game(games: Vec<(GameState, History)>) {
+    let (state, ref history) = *games.iter()
+        .max_by_key(|&&(ref gs, _)| gs.score)
+        .expect("no best game?");
+
+    println!("Best score: {} in {} moves", state.score, history.len());
+}
+
 fn play_many(n: usize) {
-    let mut results: Vec<Points> = vec![];
-
-    for _ in 0..n {
-        results.push(play_game().0.score);
-    }
-
-    println!("Best score: {}", results.iter().max().unwrap());
+    show_best_game((0..n).map(|_| play_game()).collect());
 }
 
 fn play_many_par(n: usize) {
@@ -73,15 +73,15 @@ fn play_many_par(n: usize) {
     let pool = futures_cpupool::CpuPool::new(4);
     let mut futs = vec![];
     for _ in 0..n {
-        futs.push(pool.spawn(lazy(|| finished::<Points, ()>(play_game().0.score))));
+        futs.push(pool.spawn(lazy(|| finished::<(GameState, History), ()>(play_game()))));
     }
 
-    let mut scores = vec![];
+    let mut results = vec![];
     for fut in futs {
-        scores.push(fut.wait().unwrap());
+        results.push(fut.wait().unwrap());
     }
 
-    println!("Best score: {}", scores.iter().max().unwrap());
+    show_best_game(results);
 }
 
 fn main() {

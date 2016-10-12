@@ -57,10 +57,10 @@ lazy_static! {
 /// occupancy of a given square, with `(0,0)` being the LSB. The next
 /// 15 bits represent the pieces available to play, using 5 bits each.
 #[derive(Debug, Copy, Clone)]
-pub struct Bitboard(u64, u64);
+pub struct Bitboard(pub u64, pub u64);
 
 const MASK_BOARD_HIGH_BITS: u64 = 0xfffffffff;
-// const MASK_PIECES: u64 = 0xfff << 36;
+const MASK_PIECES: u64 = 0x7fff << 36;
 
 // #[allow(dead_code)]
 // const MASK_BOARD: Bitboard = Bitboard(u64::MAX, MASK_BOARD_HIGH_BITS);
@@ -156,6 +156,7 @@ impl Bitboard {
 
     pub fn with_pieces(&self, pieces: [&'static Piece; 3]) -> Bitboard {
         let mut new = self.clone();
+        new.1 &= !MASK_PIECES;
         new.1 |= (pieces[0].id as u64) << 36 | (pieces[1].id as u64) << 41 |
                  (pieces[2].id as u64) << 46;
         new
@@ -163,7 +164,7 @@ impl Bitboard {
 
     pub fn without_piece(&self, n: usize) -> Bitboard {
         let mut new = self.clone();
-        let mask = (0xf as u64) << (36 + 5 * n);
+        let mask = (0x1f as u64) << (36 + 5 * n);
         new.1 &= !mask;
         new
     }
@@ -173,7 +174,7 @@ impl Bitboard {
     }
 
     pub fn piece(&self, n: usize) -> Option<&'static Piece> {
-        let id = (self.1 >> 36 + 5 * n) as usize & 0xf;
+        let id = (self.1 >> 36 + 5 * n) as usize & 0x1f;
         if id == 0 { None } else { Some(piece::by_id(id)) }
     }
 

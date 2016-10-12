@@ -33,7 +33,7 @@ impl From<PlacementError> for PlayError {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum GameStateChange {
     Gen { pieces: [&'static Piece; 3] },
     Play {
@@ -58,7 +58,7 @@ impl GameStateChange {
 
 pub type History = Vec<GameStateChange>;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct GameState {
     pub board: Bitboard,
     pub score: Points,
