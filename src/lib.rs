@@ -77,7 +77,7 @@ fn clear_filled(board: Bitboard) -> (Bitboard, History) {
     let mut history: History = vec![];
 
     for (i, &line) in cleared.filled().iter().enumerate() {
-        cleared = cleared.clear(line);
+        cleared = cleared.without_line(line);
         history.push(GameStateChange::Clear {
             line: line,
             points: 10 * (i as Points + 1),
@@ -116,7 +116,7 @@ impl GameState {
         match self.board.piece(n) {
             None => Err(PiecePlayed(n)),
             Some(pc) => {
-                let board = try!(self.board.place(pc, x, y)).without_piece(n);
+                let board = try!(self.board.with_piece_at(pc, x, y)).without_piece(n);
 
                 let mut history: History = vec![GameStateChange::Play {
                                                     piece: pc,
@@ -240,7 +240,8 @@ mod tests {
     fn test_clear_three_lines() {
         let board = (0..9)
             .cartesian_product(0..3)
-            .fold(Bitboard::new(), |board, (x, y)| board.fill_square(x, y));
+            .fold(Bitboard::new(),
+                  |board, (x, y)| board.with_filled_square(x, y));
 
         let state = GameState {
             board: board.with_pieces([piece::by_name("TriUD"),
@@ -264,17 +265,10 @@ mod tests {
 
     #[test]
     fn test_losing() {
-        let board = {
-            let mut b = Bitboard::new();
-
-            for y in 0..9 {
-                for x in 0..9 {
-                    b = b.fill_square(x, y);
-                }
-            }
-
-            b
-        };
+        let board = (0..9)
+            .cartesian_product(0..9)
+            .fold(Bitboard::new(),
+                  |board, (x, y)| board.with_filled_square(x, y));
 
         assert_eq!(board.filled().len(), 0);
 

@@ -12,21 +12,6 @@ pub enum PlacementError {
     Occupied(Piece, usize, usize),
 }
 
-#[inline]
-pub fn index(x: usize, y: usize) -> usize {
-    y * 10 + x
-}
-
-#[inline]
-fn dxy(x: usize, dx: isize, y: usize, dy: isize) -> (isize, isize) {
-    (x as isize + dx, y as isize + dy)
-}
-
-#[inline]
-fn in_bounds(x: isize, y: isize) -> bool {
-    x >= 0 && x < 10 && y >= 0 && y < 10
-}
-
 #[derive(Debug, Clone, Copy)]
 pub enum Line {
     Col(usize),
@@ -35,11 +20,11 @@ pub enum Line {
 
 macro_rules! line_mask {
     (x: $col:expr) => {
-        (0..10).fold(Bitboard::new(), |board, y| board.fill_square($col, y))
+        (0..10).fold(Bitboard::new(), |board, y| board.with_filled_square($col, y))
     };
 
     (y: $row:expr) => {
-        (0..10).fold(Bitboard::new(), |board, x| board.fill_square(x, $row))
+        (0..10).fold(Bitboard::new(), |board, x| board.with_filled_square(x, $row))
     }
 }
 
@@ -98,7 +83,7 @@ impl Bitboard {
         }
     }
 
-    pub fn place(&self, pc: &'static Piece, x: usize, y: usize) -> Result<Bitboard, PlacementError> {
+    pub fn with_piece_at(&self, pc: &'static Piece, x: usize, y: usize) -> Result<Bitboard, PlacementError> {
         if !in_bounds(x as isize, y as isize) {
             return Err(PlacementError::OutOfBounds(x, y));
         }
@@ -124,19 +109,19 @@ impl Bitboard {
         cols.chain(rows).collect()
     }
 
-    pub fn fill_square(&self, x: usize, y: usize) -> Bitboard {
+    pub fn with_filled_square(&self, x: usize, y: usize) -> Bitboard {
         let mut new = self.clone();
         new.set_bit(index(x, y));
         new
     }
 
-    pub fn empty_square(&self, x: usize, y: usize) -> Bitboard {
+    pub fn with_empty_square(&self, x: usize, y: usize) -> Bitboard {
         let mut new = self.clone();
         new.clear_bit(index(x, y));
         new
     }
 
-    pub fn clear(&self, line: Line) -> Bitboard {
+    pub fn without_line(&self, line: Line) -> Bitboard {
         match line {
             Line::Col(x) => *self & !MASKS_COL[x],
             Line::Row(y) => *self & !MASKS_ROW[y],
@@ -243,6 +228,21 @@ impl fmt::Display for Bitboard {
     }
 }
 
+#[inline]
+pub fn index(x: usize, y: usize) -> usize {
+    y * 10 + x
+}
+
+#[inline]
+fn dxy(x: usize, dx: isize, y: usize, dy: isize) -> (isize, isize) {
+    (x as isize + dx, y as isize + dy)
+}
+
+#[inline]
+fn in_bounds(x: isize, y: isize) -> bool {
+    x >= 0 && x < 10 && y >= 0 && y < 10
+}
+
 fn generate_piece_boards(id: usize) -> [Bitboard; 100] {
     let pc = piece::by_id(id);
     let mut boards: [Bitboard; 100] = [Bitboard::new(); 100];
@@ -260,7 +260,7 @@ fn generate_piece_boards(id: usize) -> [Bitboard; 100] {
                 if !in_bounds(nx, ny) {
                     Err(())
                 } else {
-                    Ok(board.fill_square(nx as usize, ny as usize))
+                    Ok(board.with_filled_square(nx as usize, ny as usize))
                 }
             });
 
@@ -310,7 +310,7 @@ mod tests {
         assert_eq!(board.occupancy(), 0);
 
         for (x, y) in (0..10).cartesian_product(0..10) {
-            match board.place(piece::by_name("Uni"), x, y) {
+            match board.with_piece_at(piece::by_name("Uni"), x, y) {
                 Ok(new) => {
                     assert_eq!(new.occupancy(), 1);
                     assert!(new.is_occupied(x, y));
@@ -361,7 +361,7 @@ mod tests {
         }
 
         // clear a few squares, ensure only the correct pieces fit.
-        let nearly_full = full.empty_square(0, 0).empty_square(0, 1).empty_square(1, 1);
+        let nearly_full = full.with_empty_square(0, 0).with_empty_square(0, 1).with_empty_square(1, 1);
 
         macro_rules! assert_fit {
             ($board:expr, $pc:expr, ($x:expr, $y:expr)) => {
@@ -413,7 +413,7 @@ mod tests {
                             piece::by_name("Uni")]);
 
         for x in 0..10 {
-            let new = board.clear(Line::Col(x));
+            let new = board.without_line(Line::Col(x));
             assert_eq!(new.occupancy(), 90);
             assert_eq!(new.filled().len(), 9);
 
@@ -425,7 +425,7 @@ mod tests {
         }
 
         for y in 0..10 {
-            let new = board.clear(Line::Row(y));
+            let new = board.without_line(Line::Row(y));
             assert_eq!(new.occupancy(), 90);
             assert_eq!(new.filled().len(), 9);
             for x in 0..10 {
