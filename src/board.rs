@@ -64,8 +64,12 @@ impl Bitboard {
         squares.fold(Bitboard::new(), |b, (x, y)| b.with_filled_square(x, y))
     }
 
-    fn lower_bits(&self)  -> u64 { self.0 }
-    fn higher_bits(&self) -> u64 { self.1 & MASK_BOARD_HIGH_BITS }
+    fn lower_bits(&self) -> u64 {
+        self.0
+    }
+    fn higher_bits(&self) -> u64 {
+        self.1 & MASK_BOARD_HIGH_BITS
+    }
 
     pub fn is_empty(&self) -> bool {
         self.lower_bits() == 0 && self.higher_bits() == 0
@@ -89,7 +93,11 @@ impl Bitboard {
         }
     }
 
-    pub fn with_piece_at(&self, pc: &'static Piece, x: usize, y: usize) -> Result<Bitboard, PlacementError> {
+    pub fn with_piece_at(&self,
+                         pc: &'static Piece,
+                         x: usize,
+                         y: usize)
+                         -> Result<Bitboard, PlacementError> {
         if !in_bounds(x as isize, y as isize) {
             return Err(PlacementError::OutOfBounds(x, y));
         }
@@ -320,7 +328,7 @@ mod tests {
                 Ok(new) => {
                     assert_eq!(new.occupancy(), 1);
                     assert!(new.is_occupied(x, y));
-                },
+                }
                 Err(e) => panic!("Could not place piece: {:?}", e),
             }
         }
@@ -353,7 +361,8 @@ mod tests {
         }
 
         // and no piece will fit anywhere on a full board
-        let full = (0..10).cartesian_product(0..10)
+        let full = (0..10)
+            .cartesian_product(0..10)
             .fold(Bitboard::new(), |b, (x, y)| {
                 let mut new = b.clone();
                 new.set_bit(index(x, y));
@@ -367,7 +376,8 @@ mod tests {
         }
 
         // clear a few squares, ensure only the correct pieces fit.
-        let nearly_full = full.with_empty_square(0, 0).with_empty_square(0, 1).with_empty_square(1, 1);
+        let nearly_full =
+            full.with_empty_square(0, 0).with_empty_square(0, 1).with_empty_square(1, 1);
 
         macro_rules! assert_fit {
             ($board:expr, $pc:expr, ($x:expr, $y:expr)) => {
@@ -409,14 +419,14 @@ mod tests {
 
     #[test]
     fn test_clear() {
-        let board = (0..10).cartesian_product(0..10)
+        let board = (0..10)
+            .cartesian_product(0..10)
             .fold(Bitboard::new(), |b, (x, y)| {
                 let mut new = b.clone();
                 new.set_bit(index(x, y));
                 new
-            }).with_pieces([piece::by_name("Uni"),
-                            piece::by_name("Uni"),
-                            piece::by_name("Uni")]);
+            })
+            .with_pieces([piece::by_name("Uni"), piece::by_name("Uni"), piece::by_name("Uni")]);
 
         for x in 0..10 {
             let new = board.without_line(Line::Col(x));
@@ -449,14 +459,19 @@ mod tests {
                                                  piece::by_name("DuoUD"),
                                                  piece::by_name("Square3")]);
 
-        assert_eq!(board.piece(0).expect("piece 0 should be present").name, "Uni");
-        assert_eq!(board.piece(1).expect("piece 1 should be present").name, "DuoUD");
-        assert_eq!(board.piece(2).expect("piece 2 should be present").name, "Square3");
+        assert_eq!(board.piece(0).expect("piece 0 should be present").name,
+                   "Uni");
+        assert_eq!(board.piece(1).expect("piece 1 should be present").name,
+                   "DuoUD");
+        assert_eq!(board.piece(2).expect("piece 2 should be present").name,
+                   "Square3");
 
         let fewer = board.without_piece(0);
         assert!(fewer.piece(0).is_none());
-        assert_eq!(fewer.piece(1).expect("piece 1 should be present").name, "DuoUD");
-        assert_eq!(fewer.piece(2).expect("piece 2 should be present").name, "Square3");
+        assert_eq!(fewer.piece(1).expect("piece 1 should be present").name,
+                   "DuoUD");
+        assert_eq!(fewer.piece(2).expect("piece 2 should be present").name,
+                   "Square3");
 
         let to_play = fewer.without_piece(2).pieces();
         assert!(to_play[0].is_none());
